@@ -380,7 +380,7 @@ def generate_html():
                     <li class="stats-item" style="opacity: ${{opacity}}">
                         <div class="stats-asset">
                             <div class="stats-dot" style="background: ${{asset.color}}"></div>
-                            <span class="stats-name">${{asset.name}}<span class="stats-symbol">${{asset.symbol}}</span></span>
+                            <span class="stats-name">${{asset.symbol}} <span class="stats-symbol">(${{asset.name}})</span></span>
                         </div>
                         <span class="stats-perf ${{perfClass}}">${{perfSign}}${{asset.perf}}%</span>
                     </li>
