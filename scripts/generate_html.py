@@ -21,81 +21,101 @@ def generate_html():
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>S&P 500 섹터별 퍼포먼스 비교</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        html, body {{ 
+            height: 100%;
+            overflow: hidden;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }}
         body {{ 
             font-family: 'Inter', -apple-system, sans-serif; 
             background: #000; 
             color: #fff;
-            min-height: 100vh;
-            padding: 20px;
+            padding: 16px;
+            -webkit-overflow-scrolling: touch;
         }}
-        .container {{ max-width: 1400px; margin: 0 auto; }}
+        .container {{ 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }}
         
         .header {{ 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
-            gap: 16px;
+            gap: 10px;
+            flex-shrink: 0;
         }}
-        .title {{ font-size: 24px; font-weight: 700; }}
-        .updated {{ font-size: 12px; color: #6b7280; }}
+        .title {{ font-size: 20px; font-weight: 700; }}
+        .updated {{ font-size: 11px; color: #6b7280; margin-top: 2px; }}
         
         .period-buttons {{
             display: flex;
-            gap: 8px;
+            gap: 4px;
             background: #111;
-            padding: 4px;
+            padding: 3px;
             border-radius: 8px;
+            flex-shrink: 0;
         }}
         .period-btn {{
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
             background: transparent;
             color: #9ca3af;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }}
         .period-btn:hover {{ color: #fff; }}
         .period-btn.active {{ background: #3b82f6; color: #fff; }}
         
         .main-content {{
             display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
-        }}
-        @media (max-width: 1024px) {{
-            .main-content {{ grid-template-columns: 1fr; }}
+            grid-template-columns: 1fr 260px;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
         }}
         
         .chart-container {{
             background: #111;
             border-radius: 12px;
-            padding: 20px;
-            height: 500px;
+            padding: 14px;
+            min-height: 0;
         }}
         
         .stats-box {{
             background: #111;
             border-radius: 12px;
-            padding: 20px;
-            max-height: 500px;
+            padding: 12px;
             overflow-y: auto;
+            min-height: 0;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }}
+        .stats-box::-webkit-scrollbar {{ display: none; }}
+        
         .stats-title {{
-            font-size: 16px;
+            font-size: 13px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             color: #9ca3af;
         }}
         .stats-list {{ list-style: none; }}
@@ -103,25 +123,49 @@ def generate_html():
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #222;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+        }}
+        .stats-item:active {{
+            background: #1a1a1a;
+            border-radius: 6px;
+            padding-left: 8px;
+            margin-left: -8px;
+            padding-right: 8px;
+            margin-right: -8px;
+        }}
+        @media (hover: hover) {{
+            .stats-item:hover {{
+                background: #1a1a1a;
+                border-radius: 6px;
+                padding-left: 8px;
+                margin-left: -8px;
+                padding-right: 8px;
+                margin-right: -8px;
+            }}
         }}
         .stats-item:last-child {{ border-bottom: none; }}
         .stats-asset {{
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
+            min-width: 0;
         }}
         .stats-dot {{
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
+            flex-shrink: 0;
         }}
-        .stats-name {{ font-weight: 500; font-size: 14px; }}
-        .stats-symbol {{ color: #6b7280; font-size: 11px; margin-left: 4px; }}
+        .stats-name {{ font-weight: 500; font-size: 11px; white-space: nowrap; }}
+        .stats-symbol {{ color: #6b7280; font-size: 9px; }}
         .stats-perf {{
             font-weight: 600;
-            font-size: 14px;
+            font-size: 12px;
+            flex-shrink: 0;
+            margin-left: 8px;
         }}
         .stats-perf.positive {{ color: #22c55e; }}
         .stats-perf.negative {{ color: #ef4444; }}
@@ -129,27 +173,96 @@ def generate_html():
         .legend {{
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 20px;
-            padding: 16px;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 10px 12px;
             background: #111;
-            border-radius: 12px;
+            border-radius: 10px;
+            flex-shrink: 0;
         }}
         .legend-item {{
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             cursor: pointer;
             opacity: 1;
             transition: opacity 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }}
         .legend-item.disabled {{ opacity: 0.3; }}
         .legend-dot {{
-            width: 10px;
-            height: 10px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
+            flex-shrink: 0;
         }}
-        .legend-label {{ font-size: 12px; color: #d1d5db; }}
+        .legend-label {{ font-size: 10px; color: #d1d5db; white-space: nowrap; }}
+
+        /* === TABLET === */
+        @media (max-width: 1024px) {{
+            .main-content {{ 
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }}
+            .stats-box {{ max-height: 180px; }}
+        }}
+
+        /* === MOBILE === */
+        @media (max-width: 600px) {{
+            body {{ padding: 10px; }}
+            .header {{
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                margin-bottom: 8px;
+            }}
+            .title {{ font-size: 16px; }}
+            .period-buttons {{
+                width: 100%;
+                justify-content: space-between;
+            }}
+            .period-btn {{
+                flex: 1;
+                padding: 7px 2px;
+                font-size: 11px;
+                text-align: center;
+            }}
+            .main-content {{
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+                gap: 8px;
+            }}
+            .chart-container {{
+                padding: 8px 4px 8px 8px;
+                border-radius: 10px;
+            }}
+            .stats-box {{
+                padding: 10px;
+                max-height: 150px;
+                border-radius: 10px;
+            }}
+            .stats-item {{ padding: 5px 0; }}
+            .stats-name {{ font-size: 10px; }}
+            .stats-perf {{ font-size: 11px; }}
+            .legend {{
+                gap: 6px;
+                padding: 8px 10px;
+                margin-top: 8px;
+                border-radius: 8px;
+            }}
+            .legend-label {{ font-size: 9px; }}
+            .legend-dot {{ width: 6px; height: 6px; }}
+        }}
+
+        /* === 아주 작은 화면 (imweb 좁은 임베드) === */
+        @media (max-width: 420px) {{
+            body {{ padding: 8px; }}
+            .title {{ font-size: 14px; }}
+            .stats-box {{ max-height: 130px; }}
+            .legend {{ gap: 4px; padding: 6px 8px; }}
+            .legend-label {{ font-size: 8px; }}
+        }}
     </style>
 </head>
 <body>
@@ -188,6 +301,7 @@ def generate_html():
         let currentPeriod = 'YTD';
         let chart = null;
         let hiddenAssets = new Set();
+        let selectedAsset = null;
         
         // 기간별 날짜 계산
         function getStartDate(period) {{
@@ -226,16 +340,32 @@ def generate_html():
                 
                 const percentData = calculatePercentChange(data.prices, startDate);
                 if (percentData.length > 0) {{
+                    // 선택 상태에 따른 스타일 결정
+                    let borderWidth = 2;
+                    let borderColor = data.color;
+                    
+                    if (selectedAsset) {{
+                        if (symbol === selectedAsset) {{
+                            borderWidth = 4;
+                            borderColor = data.color;
+                        }} else {{
+                            borderWidth = 1;
+                            borderColor = data.color + '50';
+                        }}
+                    }}
+                    
                     datasets.push({{
                         label: symbol,
                         data: percentData,
-                        borderColor: data.color,
+                        borderColor: borderColor,
                         backgroundColor: data.color + '20',
-                        borderWidth: 2,
+                        borderWidth: borderWidth,
                         pointRadius: 0,
                         pointHoverRadius: 4,
                         tension: 0.1,
-                        fill: false
+                        fill: false,
+                        originalColor: data.color,
+                        symbol: symbol
                     }});
                 }}
             }});
@@ -252,7 +382,7 @@ def generate_html():
                         responsive: true,
                         maintainAspectRatio: false,
                         layout: {{
-                            padding: {{ right: 80 }}
+                            padding: {{ right: window.innerWidth <= 600 ? 5 : 85 }}
                         }},
                         interaction: {{
                             mode: 'index',
@@ -266,7 +396,8 @@ def generate_html():
                                 bodyColor: '#d1d5db',
                                 borderColor: '#374151',
                                 borderWidth: 1,
-                                padding: 12,
+                                padding: window.innerWidth <= 600 ? 6 : 10,
+                                bodyFont: {{ size: window.innerWidth <= 600 ? 10 : 11 }},
                                 callbacks: {{
                                     label: (ctx) => `${{ctx.dataset.label}}: ${{ctx.parsed.y >= 0 ? '+' : ''}}${{ctx.parsed.y}}%`
                                 }}
@@ -285,12 +416,13 @@ def generate_html():
                                     }}
                                 }},
                                 grid: {{ color: '#222' }},
-                                ticks: {{ color: '#6b7280' }}
+                                ticks: {{ color: '#6b7280', font: {{ size: window.innerWidth <= 600 ? 9 : 10 }} }}
                             }},
                             y: {{
                                 grid: {{ color: '#222' }},
                                 ticks: {{
                                     color: '#6b7280',
+                                    font: {{ size: window.innerWidth <= 600 ? 9 : 10 }},
                                     callback: (v) => v + '%'
                                 }}
                             }}
@@ -299,10 +431,12 @@ def generate_html():
                     plugins: [{{
                         id: 'endLabels',
                         afterDraw: (chart) => {{
+                            // 모바일에서는 end labels 숨김
+                            if (window.innerWidth <= 600) return;
+                            
                             const ctx = chart.ctx;
                             const chartArea = chart.chartArea;
                             
-                            // Collect all end points with their y positions
                             const endpoints = [];
                             
                             chart.data.datasets.forEach((dataset, i) => {{
@@ -322,11 +456,9 @@ def generate_html():
                                 }});
                             }});
                             
-                            // Sort by y position
                             endpoints.sort((a, b) => a.y - b.y);
                             
-                            // Adjust overlapping labels (minimum 16px apart)
-                            const minGap = 16;
+                            const minGap = 14;
                             for (let i = 1; i < endpoints.length; i++) {{
                                 const prev = endpoints[i - 1];
                                 const curr = endpoints[i];
@@ -335,17 +467,16 @@ def generate_html():
                                 }}
                             }}
                             
-                            // Draw labels
                             ctx.save();
                             endpoints.forEach(ep => {{
                                 const sign = ep.value >= 0 ? '+' : '';
                                 const text = `${{ep.label}} ${{sign}}${{ep.value.toFixed(1)}}%`;
                                 
-                                ctx.font = 'bold 10px Inter, sans-serif';
+                                ctx.font = 'bold 9px Inter, sans-serif';
                                 ctx.fillStyle = ep.color;
                                 ctx.textAlign = 'left';
                                 ctx.textBaseline = 'middle';
-                                ctx.fillText(text, chartArea.right + 6, ep.y);
+                                ctx.fillText(text, chartArea.right + 5, ep.y);
                             }});
                             ctx.restore();
                         }}
@@ -360,7 +491,6 @@ def generate_html():
             const periodLabel = document.getElementById('period-label');
             periodLabel.textContent = currentPeriod;
             
-            // 성과순 정렬
             const sorted = Object.entries(ASSETS_DATA)
                 .map(([symbol, data]) => ({{
                     symbol,
@@ -374,10 +504,20 @@ def generate_html():
             list.innerHTML = sorted.map(asset => {{
                 const perfClass = asset.perf >= 0 ? 'positive' : 'negative';
                 const perfSign = asset.perf >= 0 ? '+' : '';
-                const opacity = hiddenAssets.has(asset.symbol) ? '0.3' : '1';
+                const isHidden = hiddenAssets.has(asset.symbol);
+                const isSelected = selectedAsset === asset.symbol;
+                
+                let opacity = '1';
+                if (isHidden) {{
+                    opacity = '0.3';
+                }} else if (selectedAsset && !isSelected) {{
+                    opacity = '0.4';
+                }}
+                
+                const selectedStyle = isSelected ? 'background: #1f2937; border-radius: 6px; padding-left: 8px; margin-left: -8px; padding-right: 8px; margin-right: -8px;' : '';
                 
                 return `
-                    <li class="stats-item" style="opacity: ${{opacity}}">
+                    <li class="stats-item" data-symbol="${{asset.symbol}}" style="opacity: ${{opacity}}; cursor: pointer; ${{selectedStyle}}">
                         <div class="stats-asset">
                             <div class="stats-dot" style="background: ${{asset.color}}"></div>
                             <span class="stats-name">${{asset.symbol}} <span class="stats-symbol">(${{asset.name}})</span></span>
@@ -386,6 +526,20 @@ def generate_html():
                     </li>
                 `;
             }}).join('');
+            
+            // Stats 아이템 클릭 이벤트 (토글 하이라이트)
+            list.querySelectorAll('.stats-item').forEach(item => {{
+                item.addEventListener('click', () => {{
+                    const symbol = item.dataset.symbol;
+                    if (selectedAsset === symbol) {{
+                        selectedAsset = null;
+                    }} else {{
+                        selectedAsset = symbol;
+                    }}
+                    updateChart();
+                    updateStats();
+                }});
+            }});
         }}
         
         // 범례 생성
@@ -425,6 +579,19 @@ def generate_html():
                 updateChart();
                 updateStats();
             }});
+        }});
+        
+        // 리사이즈 핸들러
+        let resizeTimeout;
+        window.addEventListener('resize', () => {{
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {{
+                if (chart) {{
+                    const isMobile = window.innerWidth <= 600;
+                    chart.options.layout.padding.right = isMobile ? 5 : 85;
+                    chart.update('none');
+                }}
+            }}, 200);
         }});
         
         // 초기화
