@@ -1,417 +1,533 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S&P 500 섹터별 퍼포먼스 비교</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Inter', -apple-system, sans-serif; 
-            background: #000; 
-            color: #fff;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 1400px; margin: 0 auto; }
-        
-        .header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-        .title { font-size: 24px; font-weight: 700; }
-        .updated { font-size: 12px; color: #6b7280; }
-        
-        .period-buttons {
-            display: flex;
-            gap: 8px;
-            background: #111;
-            padding: 4px;
-            border-radius: 8px;
-        }
-        .period-btn {
-            padding: 8px 16px;
-            border: none;
-            background: transparent;
-            color: #9ca3af;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-        .period-btn:hover { color: #fff; }
-        .period-btn.active { background: #3b82f6; color: #fff; }
-        
-        .main-content {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 20px;
-        }
-        @media (max-width: 1024px) {
-            .main-content { grid-template-columns: 1fr; }
-        }
-        
-        .chart-container {
-            background: #111;
-            border-radius: 12px;
-            padding: 20px;
-            height: 500px;
-        }
-        
-        .stats-box {
-            background: #111;
-            border-radius: 12px;
-            padding: 20px;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .stats-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 16px;
-            color: #9ca3af;
-        }
-        .stats-list { list-style: none; }
-        .stats-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #222;
-        }
-        .stats-item:last-child { border-bottom: none; }
-        .stats-asset {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .stats-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        .stats-name { font-weight: 500; font-size: 14px; }
-        .stats-symbol { color: #6b7280; font-size: 11px; margin-left: 4px; }
-        .stats-perf {
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .stats-perf.positive { color: #22c55e; }
-        .stats-perf.negative { color: #ef4444; }
-        
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 20px;
-            padding: 16px;
-            background: #111;
-            border-radius: 12px;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            opacity: 1;
-            transition: opacity 0.2s;
-        }
-        .legend-item.disabled { opacity: 0.3; }
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        .legend-label { font-size: 12px; color: #d1d5db; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>S&P 500 섹터별 퍼포먼스 비교</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
+<style>
+:root {
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface2: #111111;
+  --border: #1a1a1a;
+  --border-hover: #2a2a2a;
+  --text: #e4e4e7;
+  --text-dim: #71717a;
+  --text-muted: #52525b;
+  --green: #22c55e;
+  --red: #ef4444;
+  --cyan: #22d3ee;
+  --blue: #4a90ff;
+  --gold: #ffd644;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Noto Sans KR', -apple-system, sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 1400px; margin: 0 auto; }
+
+/* ====== HEADER ====== */
+.header {
+  padding: 36px 20px 24px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1 {
+  font-size: clamp(22px, 5vw, 36px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.sub { font-size: 13px; color: var(--text-dim); }
+.time { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-top: 8px; }
+
+/* ====== SHARE ====== */
+.share-bar { display: flex; gap: 6px; justify-content: center; margin: 16px 0 4px; flex-wrap: wrap; }
+.share-btn { display: flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-hover); background: var(--surface); color: #a1a1aa; font-size: 11px; cursor: pointer; font-family: var(--sans); transition: all 0.2s; }
+.share-btn:hover { border-color: #444; color: var(--text); }
+.share-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.share-btn.twitter:hover { border-color: #1d9bf0; color: #1d9bf0; }
+.share-btn.kakao:hover { border-color: #fee500; color: #fee500; }
+.share-btn.telegram:hover { border-color: #26a5e4; color: #26a5e4; }
+.share-btn.instagram:hover { border-color: #e1306c; color: #e1306c; }
+.share-btn.instagram.copied { border-color: var(--green); color: var(--green); }
+.share-btn.copy:hover { border-color: var(--green); color: var(--green); }
+.share-btn.copied { border-color: var(--green); color: var(--green); }
+
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #000; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ====== CONTROLS ====== */
+.controls {
+  display: flex;
+  justify-content: center;
+  padding: 16px 20px;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.period-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: 500 13px var(--sans);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.period-btn:hover { color: var(--text); }
+.period-btn.active { background: var(--cyan); color: #000; font-weight: 600; }
+
+/* ====== MAIN CONTENT ====== */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  padding: 0 20px 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ====== CHART ====== */
+.chart-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  height: 500px;
+  position: relative;
+}
+
+.chart-container::after {
+  content: 'Herdvibe.com';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font: 700 28px var(--mono);
+  color: rgba(255,255,255,0.04);
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+/* ====== STATS BOX ====== */
+.stats-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.stats-box::-webkit-scrollbar { display: none; }
+
+.stats-title {
+  font: 600 14px var(--sans);
+  color: var(--text);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.stats-list { list-style: none; }
+
+.stats-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-item:last-child { border-bottom: none; }
+
+.stats-asset { display: flex; align-items: center; gap: 10px; }
+.stats-dot { width: 10px; height: 10px; border-radius: 50%; }
+.stats-name { font: 500 13px var(--sans); }
+.stats-symbol { color: var(--text-muted); font-size: 11px; margin-left: 4px; }
+
+.stats-perf { font: 600 13px var(--mono); }
+.stats-perf.positive { color: var(--green); }
+.stats-perf.negative { color: var(--red); }
+
+/* ====== LEGEND ====== */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 20px 20px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.legend-item.disabled { opacity: 0.3; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend-label { font-size: 12px; color: var(--text-dim); }
+
+/* ====== FOOTER ====== */
+.footer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ====== MOBILE ====== */
+@media (max-width: 1024px) {
+  .main-content { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .header { padding: 20px 16px 14px; }
+  .header h1 { font-size: 22px; }
+
+  .controls { padding: 12px 16px; }
+  .period-btn { padding: 8px 12px; font-size: 12px; }
+
+  .main-content { padding: 0 12px 12px; gap: 10px; }
+  .chart-container { height: 350px; padding: 14px; }
+  .chart-container::after { font-size: 20px; }
+  .stats-box { max-height: 400px; }
+
+  .legend { margin: 0 12px 16px; }
+  .share-bar { margin: 12px 0 4px; }
+  .footer { padding: 0 16px 30px; }
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div>
-                <h1 class="title">📊 S&P 500 섹터별 퍼포먼스 비교</h1>
-                <p class="updated">마지막 업데이트: 2026-01-28 09:00</p>
-            </div>
-            <div class="period-buttons">
-                <button class="period-btn" data-period="1W">1주</button>
-                <button class="period-btn" data-period="1M">1개월</button>
-                <button class="period-btn" data-period="3M">3개월</button>
-                <button class="period-btn" data-period="12M">1년</button>
-                <button class="period-btn active" data-period="YTD">YTD</button>
-            </div>
-        </div>
-        
-        <div class="main-content">
-            <div class="chart-container">
-                <canvas id="perfChart"></canvas>
-            </div>
-            
-            <div class="stats-box">
-                <div class="stats-title">📈 수익률 (<span id="period-label">YTD</span>)</div>
-                <ul class="stats-list" id="stats-list"></ul>
-            </div>
-        </div>
-        
-        <div class="legend" id="legend"></div>
-    </div>
 
-    <script>
-        const ASSETS_DATA = {"XLK": {"name": "기술", "color": "#3b82f6", "performance": {"1W": 1.8, "1M": 3.5, "3M": 8.2, "12M": 32.5, "YTD": 4.2}, "prices": [{"date": "2025-01-02", "price": 180.12}, {"date": "2025-02-01", "price": 188.34}, {"date": "2025-03-01", "price": 195.67}, {"date": "2025-04-01", "price": 202.9}, {"date": "2025-05-01", "price": 210.23}, {"date": "2025-06-01", "price": 218.12}, {"date": "2025-07-01", "price": 225.45}, {"date": "2025-08-01", "price": 220.9}, {"date": "2025-09-01", "price": 228.23}, {"date": "2025-10-01", "price": 235.12}, {"date": "2025-11-01", "price": 242.45}, {"date": "2025-12-01", "price": 248.9}, {"date": "2026-01-05", "price": 255.12}, {"date": "2026-01-12", "price": 260.45}, {"date": "2026-01-19", "price": 265.9}, {"date": "2026-01-26", "price": 270.23}, {"date": "2026-01-28", "price": 275.12}]}, "XLF": {"name": "금융", "color": "#22c55e", "performance": {"1W": 1.2, "1M": 2.8, "3M": 6.5, "12M": 18.2, "YTD": 3.5}, "prices": [{"date": "2025-01-02", "price": 42.12}, {"date": "2025-02-01", "price": 43.34}, {"date": "2025-03-01", "price": 44.67}, {"date": "2025-04-01", "price": 45.9}, {"date": "2025-05-01", "price": 47.23}, {"date": "2025-06-01", "price": 48.12}, {"date": "2025-07-01", "price": 49.45}, {"date": "2025-08-01", "price": 48.9}, {"date": "2025-09-01", "price": 50.23}, {"date": "2025-10-01", "price": 51.12}, {"date": "2025-11-01", "price": 52.45}, {"date": "2025-12-01", "price": 53.9}, {"date": "2026-01-05", "price": 54.12}, {"date": "2026-01-12", "price": 55.45}, {"date": "2026-01-19", "price": 56.9}, {"date": "2026-01-26", "price": 57.23}, {"date": "2026-01-28", "price": 58.12}]}, "XLV": {"name": "헬스케어", "color": "#ef4444", "performance": {"1W": 0.5, "1M": 1.2, "3M": 2.8, "12M": 8.5, "YTD": 1.5}, "prices": [{"date": "2025-01-02", "price": 138.12}, {"date": "2025-02-01", "price": 139.34}, {"date": "2025-03-01", "price": 140.67}, {"date": "2025-04-01", "price": 141.9}, {"date": "2025-05-01", "price": 143.23}, {"date": "2025-06-01", "price": 144.12}, {"date": "2025-07-01", "price": 145.45}, {"date": "2025-08-01", "price": 146.9}, {"date": "2025-09-01", "price": 148.23}, {"date": "2025-10-01", "price": 149.12}, {"date": "2025-11-01", "price": 150.45}, {"date": "2025-12-01", "price": 151.9}, {"date": "2026-01-05", "price": 152.12}, {"date": "2026-01-12", "price": 153.45}, {"date": "2026-01-19", "price": 154.9}, {"date": "2026-01-26", "price": 155.23}, {"date": "2026-01-28", "price": 156.12}]}, "XLY": {"name": "임의소비재", "color": "#f59e0b", "performance": {"1W": 2.1, "1M": 4.2, "3M": 9.5, "12M": 28.5, "YTD": 5.2}, "prices": [{"date": "2025-01-02", "price": 185.12}, {"date": "2025-02-01", "price": 192.34}, {"date": "2025-03-01", "price": 198.67}, {"date": "2025-04-01", "price": 205.9}, {"date": "2025-05-01", "price": 212.23}, {"date": "2025-06-01", "price": 218.12}, {"date": "2025-07-01", "price": 225.45}, {"date": "2025-08-01", "price": 220.9}, {"date": "2025-09-01", "price": 228.23}, {"date": "2025-10-01", "price": 235.12}, {"date": "2025-11-01", "price": 242.45}, {"date": "2025-12-01", "price": 248.9}, {"date": "2026-01-05", "price": 255.12}, {"date": "2026-01-12", "price": 262.45}, {"date": "2026-01-19", "price": 268.9}, {"date": "2026-01-26", "price": 275.23}, {"date": "2026-01-28", "price": 282.12}]}, "XLC": {"name": "커뮤니케이션", "color": "#8b5cf6", "performance": {"1W": 1.5, "1M": 3.8, "3M": 7.8, "12M": 25.2, "YTD": 4.8}, "prices": [{"date": "2025-01-02", "price": 78.12}, {"date": "2025-02-01", "price": 82.34}, {"date": "2025-03-01", "price": 85.67}, {"date": "2025-04-01", "price": 88.9}, {"date": "2025-05-01", "price": 92.23}, {"date": "2025-06-01", "price": 95.12}, {"date": "2025-07-01", "price": 98.45}, {"date": "2025-08-01", "price": 96.9}, {"date": "2025-09-01", "price": 100.23}, {"date": "2025-10-01", "price": 103.12}, {"date": "2025-11-01", "price": 106.45}, {"date": "2025-12-01", "price": 109.9}, {"date": "2026-01-05", "price": 112.12}, {"date": "2026-01-12", "price": 115.45}, {"date": "2026-01-19", "price": 118.9}, {"date": "2026-01-26", "price": 121.23}, {"date": "2026-01-28", "price": 124.12}]}, "XLI": {"name": "산업재", "color": "#06b6d4", "performance": {"1W": 0.8, "1M": 2.2, "3M": 5.5, "12M": 15.2, "YTD": 2.8}, "prices": [{"date": "2025-01-02", "price": 118.12}, {"date": "2025-02-01", "price": 120.34}, {"date": "2025-03-01", "price": 122.67}, {"date": "2025-04-01", "price": 124.9}, {"date": "2025-05-01", "price": 127.23}, {"date": "2025-06-01", "price": 129.12}, {"date": "2025-07-01", "price": 131.45}, {"date": "2025-08-01", "price": 133.9}, {"date": "2025-09-01", "price": 136.23}, {"date": "2025-10-01", "price": 138.12}, {"date": "2025-11-01", "price": 140.45}, {"date": "2025-12-01", "price": 142.9}, {"date": "2026-01-05", "price": 144.12}, {"date": "2026-01-12", "price": 146.45}, {"date": "2026-01-19", "price": 148.9}, {"date": "2026-01-26", "price": 150.23}, {"date": "2026-01-28", "price": 152.12}]}, "XLP": {"name": "필수소비재", "color": "#ec4899", "performance": {"1W": 0.3, "1M": 0.8, "3M": 1.5, "12M": 5.2, "YTD": 0.8}, "prices": [{"date": "2025-01-02", "price": 78.12}, {"date": "2025-02-01", "price": 78.84}, {"date": "2025-03-01", "price": 79.67}, {"date": "2025-04-01", "price": 80.4}, {"date": "2025-05-01", "price": 81.23}, {"date": "2025-06-01", "price": 81.92}, {"date": "2025-07-01", "price": 82.65}, {"date": "2025-08-01", "price": 83.4}, {"date": "2025-09-01", "price": 84.13}, {"date": "2025-10-01", "price": 84.82}, {"date": "2025-11-01", "price": 85.55}, {"date": "2025-12-01", "price": 86.3}, {"date": "2026-01-05", "price": 86.72}, {"date": "2026-01-12", "price": 87.15}, {"date": "2026-01-19", "price": 87.6}, {"date": "2026-01-26", "price": 87.93}, {"date": "2026-01-28", "price": 88.32}]}, "XLE": {"name": "에너지", "color": "#84cc16", "performance": {"1W": 2.5, "1M": 5.2, "3M": 8.8, "12M": -2.5, "YTD": 6.2}, "prices": [{"date": "2025-01-02", "price": 92.12}, {"date": "2025-02-01", "price": 90.34}, {"date": "2025-03-01", "price": 88.67}, {"date": "2025-04-01", "price": 85.9}, {"date": "2025-05-01", "price": 83.23}, {"date": "2025-06-01", "price": 80.12}, {"date": "2025-07-01", "price": 82.45}, {"date": "2025-08-01", "price": 85.9}, {"date": "2025-09-01", "price": 88.23}, {"date": "2025-10-01", "price": 90.12}, {"date": "2025-11-01", "price": 92.45}, {"date": "2025-12-01", "price": 95.9}, {"date": "2026-01-05", "price": 98.12}, {"date": "2026-01-12", "price": 100.45}, {"date": "2026-01-19", "price": 102.9}, {"date": "2026-01-26", "price": 105.23}, {"date": "2026-01-28", "price": 108.12}]}, "XLU": {"name": "유틸리티", "color": "#f97316", "performance": {"1W": 0.2, "1M": 0.5, "3M": 1.2, "12M": 12.5, "YTD": 0.5}, "prices": [{"date": "2025-01-02", "price": 68.12}, {"date": "2025-02-01", "price": 69.34}, {"date": "2025-03-01", "price": 70.67}, {"date": "2025-04-01", "price": 71.9}, {"date": "2025-05-01", "price": 73.23}, {"date": "2025-06-01", "price": 74.12}, {"date": "2025-07-01", "price": 75.45}, {"date": "2025-08-01", "price": 76.9}, {"date": "2025-09-01", "price": 78.23}, {"date": "2025-10-01", "price": 79.12}, {"date": "2025-11-01", "price": 80.45}, {"date": "2025-12-01", "price": 81.9}, {"date": "2026-01-05", "price": 82.12}, {"date": "2026-01-12", "price": 82.45}, {"date": "2026-01-19", "price": 82.9}, {"date": "2026-01-26", "price": 83.23}, {"date": "2026-01-28", "price": 83.52}]}, "XLRE": {"name": "부동산", "color": "#14b8a6", "performance": {"1W": -0.5, "1M": -1.2, "3M": -2.5, "12M": 5.8, "YTD": -1.5}, "prices": [{"date": "2025-01-02", "price": 42.12}, {"date": "2025-02-01", "price": 42.84}, {"date": "2025-03-01", "price": 43.67}, {"date": "2025-04-01", "price": 44.4}, {"date": "2025-05-01", "price": 45.23}, {"date": "2025-06-01", "price": 45.92}, {"date": "2025-07-01", "price": 46.65}, {"date": "2025-08-01", "price": 47.4}, {"date": "2025-09-01", "price": 48.13}, {"date": "2025-10-01", "price": 48.82}, {"date": "2025-11-01", "price": 49.55}, {"date": "2025-12-01", "price": 50.3}, {"date": "2026-01-05", "price": 50.02}, {"date": "2026-01-12", "price": 49.75}, {"date": "2026-01-19", "price": 49.4}, {"date": "2026-01-26", "price": 49.13}, {"date": "2026-01-28", "price": 48.82}]}, "XLB": {"name": "소재", "color": "#a855f7", "performance": {"1W": 1.0, "1M": 2.5, "3M": 4.8, "12M": 10.5, "YTD": 2.2}, "prices": [{"date": "2025-01-02", "price": 88.12}, {"date": "2025-02-01", "price": 89.34}, {"date": "2025-03-01", "price": 90.67}, {"date": "2025-04-01", "price": 91.9}, {"date": "2025-05-01", "price": 93.23}, {"date": "2025-06-01", "price": 94.12}, {"date": "2025-07-01", "price": 95.45}, {"date": "2025-08-01", "price": 96.9}, {"date": "2025-09-01", "price": 98.23}, {"date": "2025-10-01", "price": 99.12}, {"date": "2025-11-01", "price": 100.45}, {"date": "2025-12-01", "price": 101.9}, {"date": "2026-01-05", "price": 102.72}, {"date": "2026-01-12", "price": 103.55}, {"date": "2026-01-19", "price": 104.4}, {"date": "2026-01-26", "price": 105.13}, {"date": "2026-01-28", "price": 105.92}]}};
-        
-        let currentPeriod = 'YTD';
-        let chart = null;
-        let hiddenAssets = new Set();
-        
-        // 기간별 날짜 계산
-        function getStartDate(period) {
-            const now = new Date();
-            switch(period) {
-                case '1W': return new Date(now - 7 * 24 * 60 * 60 * 1000);
-                case '1M': return new Date(now - 30 * 24 * 60 * 60 * 1000);
-                case '3M': return new Date(now - 90 * 24 * 60 * 60 * 1000);
-                case '12M': return new Date(now - 365 * 24 * 60 * 60 * 1000);
-                case 'YTD': return new Date(now.getFullYear(), 0, 1);
-                default: return new Date(now.getFullYear(), 0, 1);
+<div class="container">
+  <div class="header">
+    <h1>S&P 500 섹터별 퍼포먼스 비교</h1>
+    <div class="sub">11개 GICS 섹터 ETF 수익률 비교 — 섹터 로테이션 한눈에 파악</div>
+    <div class="time">마지막 업데이트: 2026-01-28 09:00</div>
+  </div>
+
+  <div class="share-bar">
+    <button class="share-btn twitter" onclick="shareTwitter()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
+    <button class="share-btn kakao" onclick="shareKakao()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-5.52 0-10 3.36-10 7.5 0 2.66 1.74 5 4.36 6.33-.14.53-.9 3.4-.93 3.61 0 0-.02.17.09.23.11.07.24.03.24.03.32-.04 3.7-2.42 4.28-2.83.62.09 1.27.13 1.96.13 5.52 0 10-3.36 10-7.5S17.52 3 12 3z"/></svg>카카오톡</button>
+    <button class="share-btn telegram" onclick="shareTelegram()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>텔레그램</button>
+    <button class="share-btn instagram" onclick="shareInstagram(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>인스타그램</button>
+    <button class="share-btn copy" onclick="copyLink(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>링크복사</button>
+  </div>
+
+  <div class="controls">
+    <div class="period-buttons">
+      <button class="period-btn" data-period="1W">1주</button>
+      <button class="period-btn" data-period="1M">1개월</button>
+      <button class="period-btn" data-period="3M">3개월</button>
+      <button class="period-btn" data-period="12M">1년</button>
+      <button class="period-btn active" data-period="YTD">YTD</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="chart-container">
+      <canvas id="perfChart"></canvas>
+    </div>
+    <div class="stats-box">
+      <div class="stats-title">수익률 (<span id="period-label">YTD</span>)</div>
+      <ul class="stats-list" id="stats-list"></ul>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="footer">데이터 출처: Yahoo Finance · SPDR 섹터 ETF 기준 · 투자 판단은 본인의 책임입니다</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== SHARE ====== */
+const SHARE_URL = 'https://herdvibe.com/sector-performance';
+const SHARE_TITLE = 'S&P 500 섹터별 퍼포먼스 비교 — Herdvibe';
+const SHARE_DESC = '11개 GICS 섹터 ETF 수익률 비교 | Herdvibe';
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+function shareTwitter() {
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TITLE)}&url=${encodeURIComponent(SHARE_URL)}`, '_blank');
+}
+function shareKakao() {
+  if (window.Kakao && !Kakao.isInitialized()) Kakao.init('a43ed7b39fac35458f4f9df925a279b5');
+  if (window.Kakao) {
+    Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: { title: SHARE_TITLE, description: SHARE_DESC, imageUrl: 'https://herdvibe.com/og-sector.png', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } }
+    });
+  }
+}
+function shareTelegram() {
+  window.open(`https://t.me/share/url?url=${encodeURIComponent(SHARE_URL)}&text=${encodeURIComponent(SHARE_TITLE)}`, '_blank');
+}
+function shareInstagram(btn) {
+  try {
+    if (window.parent !== window) { window.parent.postMessage({ type: 'copy', text: SHARE_URL }, '*'); }
+    else { navigator.clipboard.writeText(SHARE_URL); }
+    const orig = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>복사됨!';
+    showToast('링크가 복사되었습니다 - 인스타그램에 붙여넣기 하세요');
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+  } catch(e) { showToast('복사 실패'); }
+}
+function copyLink(btn) {
+  try {
+    if (window.parent !== window) { window.parent.postMessage({ type: 'copy', text: SHARE_URL }, '*'); }
+    else { navigator.clipboard.writeText(SHARE_URL); }
+    const orig = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>복사됨!';
+    showToast('링크가 복사되었습니다');
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+  } catch(e) { showToast('복사 실패'); }
+}
+
+/* ====== DATA ====== */
+const ASSETS_DATA = {"XLK": {"name": "기술", "color": "#4a90ff", "performance": {"1W": 1.8, "1M": 3.5, "3M": 8.2, "12M": 32.5, "YTD": 4.2}, "prices": [{"date": "2025-01-02", "price": 180.12}, {"date": "2025-02-01", "price": 188.34}, {"date": "2025-03-01", "price": 195.67}, {"date": "2025-04-01", "price": 202.9}, {"date": "2025-05-01", "price": 210.23}, {"date": "2025-06-01", "price": 218.12}, {"date": "2025-07-01", "price": 225.45}, {"date": "2025-08-01", "price": 220.9}, {"date": "2025-09-01", "price": 228.23}, {"date": "2025-10-01", "price": 235.12}, {"date": "2025-11-01", "price": 242.45}, {"date": "2025-12-01", "price": 248.9}, {"date": "2026-01-05", "price": 255.12}, {"date": "2026-01-12", "price": 260.45}, {"date": "2026-01-19", "price": 265.9}, {"date": "2026-01-26", "price": 270.23}, {"date": "2026-01-28", "price": 275.12}]}, "XLF": {"name": "금융", "color": "#22c55e", "performance": {"1W": 1.2, "1M": 2.8, "3M": 6.5, "12M": 18.2, "YTD": 3.5}, "prices": [{"date": "2025-01-02", "price": 42.12}, {"date": "2025-02-01", "price": 43.34}, {"date": "2025-03-01", "price": 44.67}, {"date": "2025-04-01", "price": 45.9}, {"date": "2025-05-01", "price": 47.23}, {"date": "2025-06-01", "price": 48.12}, {"date": "2025-07-01", "price": 49.45}, {"date": "2025-08-01", "price": 48.9}, {"date": "2025-09-01", "price": 50.23}, {"date": "2025-10-01", "price": 51.12}, {"date": "2025-11-01", "price": 52.45}, {"date": "2025-12-01", "price": 53.9}, {"date": "2026-01-05", "price": 54.12}, {"date": "2026-01-12", "price": 55.45}, {"date": "2026-01-19", "price": 56.9}, {"date": "2026-01-26", "price": 57.23}, {"date": "2026-01-28", "price": 58.12}]}, "XLV": {"name": "헬스케어", "color": "#ef4444", "performance": {"1W": 0.5, "1M": 1.2, "3M": 2.8, "12M": 8.5, "YTD": 1.5}, "prices": [{"date": "2025-01-02", "price": 138.12}, {"date": "2025-02-01", "price": 139.34}, {"date": "2025-03-01", "price": 140.67}, {"date": "2025-04-01", "price": 141.9}, {"date": "2025-05-01", "price": 143.23}, {"date": "2025-06-01", "price": 144.12}, {"date": "2025-07-01", "price": 145.45}, {"date": "2025-08-01", "price": 146.9}, {"date": "2025-09-01", "price": 148.23}, {"date": "2025-10-01", "price": 149.12}, {"date": "2025-11-01", "price": 150.45}, {"date": "2025-12-01", "price": 151.9}, {"date": "2026-01-05", "price": 152.12}, {"date": "2026-01-12", "price": 153.45}, {"date": "2026-01-19", "price": 154.9}, {"date": "2026-01-26", "price": 155.23}, {"date": "2026-01-28", "price": 156.12}]}, "XLY": {"name": "임의소비재", "color": "#ffd644", "performance": {"1W": 2.1, "1M": 4.2, "3M": 9.5, "12M": 28.5, "YTD": 5.2}, "prices": [{"date": "2025-01-02", "price": 185.12}, {"date": "2025-02-01", "price": 192.34}, {"date": "2025-03-01", "price": 198.67}, {"date": "2025-04-01", "price": 205.9}, {"date": "2025-05-01", "price": 212.23}, {"date": "2025-06-01", "price": 218.12}, {"date": "2025-07-01", "price": 225.45}, {"date": "2025-08-01", "price": 220.9}, {"date": "2025-09-01", "price": 228.23}, {"date": "2025-10-01", "price": 235.12}, {"date": "2025-11-01", "price": 242.45}, {"date": "2025-12-01", "price": 248.9}, {"date": "2026-01-05", "price": 255.12}, {"date": "2026-01-12", "price": 262.45}, {"date": "2026-01-19", "price": 268.9}, {"date": "2026-01-26", "price": 275.23}, {"date": "2026-01-28", "price": 282.12}]}, "XLC": {"name": "커뮤니케이션", "color": "#a855f7", "performance": {"1W": 1.5, "1M": 3.8, "3M": 7.8, "12M": 25.2, "YTD": 4.8}, "prices": [{"date": "2025-01-02", "price": 78.12}, {"date": "2025-02-01", "price": 82.34}, {"date": "2025-03-01", "price": 85.67}, {"date": "2025-04-01", "price": 88.9}, {"date": "2025-05-01", "price": 92.23}, {"date": "2025-06-01", "price": 95.12}, {"date": "2025-07-01", "price": 98.45}, {"date": "2025-08-01", "price": 96.9}, {"date": "2025-09-01", "price": 100.23}, {"date": "2025-10-01", "price": 103.12}, {"date": "2025-11-01", "price": 106.45}, {"date": "2025-12-01", "price": 109.9}, {"date": "2026-01-05", "price": 112.12}, {"date": "2026-01-12", "price": 115.45}, {"date": "2026-01-19", "price": 118.9}, {"date": "2026-01-26", "price": 121.23}, {"date": "2026-01-28", "price": 124.12}]}, "XLI": {"name": "산업재", "color": "#22d3ee", "performance": {"1W": 0.8, "1M": 2.2, "3M": 5.5, "12M": 15.2, "YTD": 2.8}, "prices": [{"date": "2025-01-02", "price": 118.12}, {"date": "2025-02-01", "price": 120.34}, {"date": "2025-03-01", "price": 122.67}, {"date": "2025-04-01", "price": 124.9}, {"date": "2025-05-01", "price": 127.23}, {"date": "2025-06-01", "price": 129.12}, {"date": "2025-07-01", "price": 131.45}, {"date": "2025-08-01", "price": 133.9}, {"date": "2025-09-01", "price": 136.23}, {"date": "2025-10-01", "price": 138.12}, {"date": "2025-11-01", "price": 140.45}, {"date": "2025-12-01", "price": 142.9}, {"date": "2026-01-05", "price": 144.12}, {"date": "2026-01-12", "price": 146.45}, {"date": "2026-01-19", "price": 148.9}, {"date": "2026-01-26", "price": 150.23}, {"date": "2026-01-28", "price": 152.12}]}, "XLP": {"name": "필수소비재", "color": "#ec4899", "performance": {"1W": 0.3, "1M": 0.8, "3M": 1.5, "12M": 5.2, "YTD": 0.8}, "prices": [{"date": "2025-01-02", "price": 78.12}, {"date": "2025-02-01", "price": 78.84}, {"date": "2025-03-01", "price": 79.67}, {"date": "2025-04-01", "price": 80.4}, {"date": "2025-05-01", "price": 81.23}, {"date": "2025-06-01", "price": 81.92}, {"date": "2025-07-01", "price": 82.65}, {"date": "2025-08-01", "price": 83.4}, {"date": "2025-09-01", "price": 84.13}, {"date": "2025-10-01", "price": 84.82}, {"date": "2025-11-01", "price": 85.55}, {"date": "2025-12-01", "price": 86.3}, {"date": "2026-01-05", "price": 86.72}, {"date": "2026-01-12", "price": 87.15}, {"date": "2026-01-19", "price": 87.6}, {"date": "2026-01-26", "price": 87.93}, {"date": "2026-01-28", "price": 88.32}]}, "XLE": {"name": "에너지", "color": "#84cc16", "performance": {"1W": 2.5, "1M": 5.2, "3M": 8.8, "12M": -2.5, "YTD": 6.2}, "prices": [{"date": "2025-01-02", "price": 92.12}, {"date": "2025-02-01", "price": 90.34}, {"date": "2025-03-01", "price": 88.67}, {"date": "2025-04-01", "price": 85.9}, {"date": "2025-05-01", "price": 83.23}, {"date": "2025-06-01", "price": 80.12}, {"date": "2025-07-01", "price": 82.45}, {"date": "2025-08-01", "price": 85.9}, {"date": "2025-09-01", "price": 88.23}, {"date": "2025-10-01", "price": 90.12}, {"date": "2025-11-01", "price": 92.45}, {"date": "2025-12-01", "price": 95.9}, {"date": "2026-01-05", "price": 98.12}, {"date": "2026-01-12", "price": 100.45}, {"date": "2026-01-19", "price": 102.9}, {"date": "2026-01-26", "price": 105.23}, {"date": "2026-01-28", "price": 108.12}]}, "XLU": {"name": "유틸리티", "color": "#f97316", "performance": {"1W": 0.2, "1M": 0.5, "3M": 1.2, "12M": 12.5, "YTD": 0.5}, "prices": [{"date": "2025-01-02", "price": 68.12}, {"date": "2025-02-01", "price": 69.34}, {"date": "2025-03-01", "price": 70.67}, {"date": "2025-04-01", "price": 71.9}, {"date": "2025-05-01", "price": 73.23}, {"date": "2025-06-01", "price": 74.12}, {"date": "2025-07-01", "price": 75.45}, {"date": "2025-08-01", "price": 76.9}, {"date": "2025-09-01", "price": 78.23}, {"date": "2025-10-01", "price": 79.12}, {"date": "2025-11-01", "price": 80.45}, {"date": "2025-12-01", "price": 81.9}, {"date": "2026-01-05", "price": 82.12}, {"date": "2026-01-12", "price": 82.45}, {"date": "2026-01-19", "price": 82.9}, {"date": "2026-01-26", "price": 83.23}, {"date": "2026-01-28", "price": 83.52}]}, "XLRE": {"name": "부동산", "color": "#14b8a6", "performance": {"1W": -0.5, "1M": -1.2, "3M": -2.5, "12M": 5.8, "YTD": -1.5}, "prices": [{"date": "2025-01-02", "price": 42.12}, {"date": "2025-02-01", "price": 42.84}, {"date": "2025-03-01", "price": 43.67}, {"date": "2025-04-01", "price": 44.4}, {"date": "2025-05-01", "price": 45.23}, {"date": "2025-06-01", "price": 45.92}, {"date": "2025-07-01", "price": 46.65}, {"date": "2025-08-01", "price": 47.4}, {"date": "2025-09-01", "price": 48.13}, {"date": "2025-10-01", "price": 48.82}, {"date": "2025-11-01", "price": 49.55}, {"date": "2025-12-01", "price": 50.3}, {"date": "2026-01-05", "price": 50.02}, {"date": "2026-01-12", "price": 49.75}, {"date": "2026-01-19", "price": 49.4}, {"date": "2026-01-26", "price": 49.13}, {"date": "2026-01-28", "price": 48.82}]}, "XLB": {"name": "소재", "color": "#64748b", "performance": {"1W": 1.0, "1M": 2.5, "3M": 4.8, "12M": 10.5, "YTD": 2.2}, "prices": [{"date": "2025-01-02", "price": 88.12}, {"date": "2025-02-01", "price": 89.34}, {"date": "2025-03-01", "price": 90.67}, {"date": "2025-04-01", "price": 91.9}, {"date": "2025-05-01", "price": 93.23}, {"date": "2025-06-01", "price": 94.12}, {"date": "2025-07-01", "price": 95.45}, {"date": "2025-08-01", "price": 96.9}, {"date": "2025-09-01", "price": 98.23}, {"date": "2025-10-01", "price": 99.12}, {"date": "2025-11-01", "price": 100.45}, {"date": "2025-12-01", "price": 101.9}, {"date": "2026-01-05", "price": 102.72}, {"date": "2026-01-12", "price": 103.55}, {"date": "2026-01-19", "price": 104.4}, {"date": "2026-01-26", "price": 105.13}, {"date": "2026-01-28", "price": 105.92}]}};
+
+let currentPeriod = 'YTD';
+let chart = null;
+let hiddenAssets = new Set();
+
+function getStartDate(period) {
+  const now = new Date();
+  switch(period) {
+    case '1W': return new Date(now - 7*24*60*60*1000);
+    case '1M': return new Date(now - 30*24*60*60*1000);
+    case '3M': return new Date(now - 90*24*60*60*1000);
+    case '12M': return new Date(now - 365*24*60*60*1000);
+    case 'YTD': return new Date(now.getFullYear(), 0, 1);
+    default: return new Date(now.getFullYear(), 0, 1);
+  }
+}
+
+function calculatePercentChange(prices, startDate) {
+  const startStr = startDate.toISOString().split('T')[0];
+  const filtered = prices.filter(p => p.date >= startStr);
+  if (filtered.length === 0) return [];
+  const basePrice = filtered[0].price;
+  return filtered.map(p => ({ x: p.date, y: ((p.price - basePrice) / basePrice * 100).toFixed(2) }));
+}
+
+function updateChart() {
+  const startDate = getStartDate(currentPeriod);
+  const datasets = [];
+
+  Object.entries(ASSETS_DATA).forEach(([symbol, data]) => {
+    if (hiddenAssets.has(symbol)) return;
+    const percentData = calculatePercentChange(data.prices, startDate);
+    if (percentData.length > 0) {
+      datasets.push({
+        label: symbol,
+        data: percentData,
+        borderColor: data.color,
+        backgroundColor: data.color + '20',
+        borderWidth: 2,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.1,
+        fill: false
+      });
+    }
+  });
+
+  if (chart) {
+    chart.data.datasets = datasets;
+    chart.update('none');
+  } else {
+    const ctx = document.getElementById('perfChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { right: 80 } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#18181b',
+            titleColor: '#fff',
+            bodyColor: '#a1a1aa',
+            borderColor: '#2a2a2a',
+            borderWidth: 1,
+            padding: 12,
+            titleFont: { family: 'Noto Sans KR' },
+            bodyFont: { family: 'JetBrains Mono', size: 11 },
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y}%`
             }
-        }
-        
-        // 가격 데이터를 % 변화로 변환
-        function calculatePercentChange(prices, startDate) {
-            const startStr = startDate.toISOString().split('T')[0];
-            const filtered = prices.filter(p => p.date >= startStr);
-            
-            if (filtered.length === 0) return [];
-            
-            const basePrice = filtered[0].price;
-            return filtered.map(p => ({
-                x: p.date,
-                y: ((p.price - basePrice) / basePrice * 100).toFixed(2)
-            }));
-        }
-        
-        // 차트 생성/업데이트
-        function updateChart() {
-            const startDate = getStartDate(currentPeriod);
-            const datasets = [];
-            
-            Object.entries(ASSETS_DATA).forEach(([symbol, data]) => {
-                if (hiddenAssets.has(symbol)) return;
-                
-                const percentData = calculatePercentChange(data.prices, startDate);
-                if (percentData.length > 0) {
-                    datasets.push({
-                        label: symbol,
-                        data: percentData,
-                        borderColor: data.color,
-                        backgroundColor: data.color + '20',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
-                        tension: 0.1,
-                        fill: false
-                    });
-                }
-            });
-            
-            if (chart) {
-                chart.data.datasets = datasets;
-                chart.update('none');
-            } else {
-                const ctx = document.getElementById('perfChart').getContext('2d');
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: { datasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        layout: {
-                            padding: { right: 80 }
-                        },
-                        interaction: {
-                            mode: 'index',
-                            intersect: false
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: '#1f2937',
-                                titleColor: '#fff',
-                                bodyColor: '#d1d5db',
-                                borderColor: '#374151',
-                                borderWidth: 1,
-                                padding: 12,
-                                callbacks: {
-                                    label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? '+' : ''}${ctx.parsed.y}%`
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: {
-                                    unit: currentPeriod === '1W' ? 'day' : 
-                                          currentPeriod === '1M' ? 'week' : 'month',
-                                    displayFormats: {
-                                        day: 'MM/dd',
-                                        week: 'MM/dd',
-                                        month: 'yy/MM'
-                                    }
-                                },
-                                grid: { color: '#222' },
-                                ticks: { color: '#6b7280' }
-                            },
-                            y: {
-                                grid: { color: '#222' },
-                                ticks: {
-                                    color: '#6b7280',
-                                    callback: (v) => v + '%'
-                                }
-                            }
-                        }
-                    },
-                    plugins: [{
-                        id: 'endLabels',
-                        afterDraw: (chart) => {
-                            const ctx = chart.ctx;
-                            const chartArea = chart.chartArea;
-                            
-                            // Collect all end points with their y positions
-                            const endpoints = [];
-                            
-                            chart.data.datasets.forEach((dataset, i) => {
-                                const meta = chart.getDatasetMeta(i);
-                                if (meta.hidden) return;
-                                
-                                const lastPoint = meta.data[meta.data.length - 1];
-                                if (!lastPoint) return;
-                                
-                                const value = parseFloat(dataset.data[dataset.data.length - 1].y);
-                                endpoints.push({
-                                    y: lastPoint.y,
-                                    originalY: lastPoint.y,
-                                    value: value,
-                                    label: dataset.label,
-                                    color: dataset.borderColor
-                                });
-                            });
-                            
-                            // Sort by y position
-                            endpoints.sort((a, b) => a.y - b.y);
-                            
-                            // Adjust overlapping labels (minimum 16px apart)
-                            const minGap = 16;
-                            for (let i = 1; i < endpoints.length; i++) {
-                                const prev = endpoints[i - 1];
-                                const curr = endpoints[i];
-                                if (curr.y - prev.y < minGap) {
-                                    curr.y = prev.y + minGap;
-                                }
-                            }
-                            
-                            // Draw labels
-                            ctx.save();
-                            endpoints.forEach(ep => {
-                                const sign = ep.value >= 0 ? '+' : '';
-                                const text = `${ep.label} ${sign}${ep.value.toFixed(1)}%`;
-                                
-                                ctx.font = 'bold 10px Inter, sans-serif';
-                                ctx.fillStyle = ep.color;
-                                ctx.textAlign = 'left';
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(text, chartArea.right + 6, ep.y);
-                            });
-                            ctx.restore();
-                        }
-                    }]
-                });
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: currentPeriod === '1W' ? 'day' : currentPeriod === '1M' ? 'week' : 'month',
+              displayFormats: { day: 'MM/dd', week: 'MM/dd', month: 'yy/MM' }
+            },
+            grid: { color: '#1a1a1a' },
+            ticks: { color: '#52525b', font: { family: 'JetBrains Mono', size: 10 } }
+          },
+          y: {
+            grid: { color: '#1a1a1a' },
+            ticks: {
+              color: '#52525b',
+              font: { family: 'JetBrains Mono', size: 10 },
+              callback: (v) => v + '%'
             }
+          }
         }
-        
-        // Stats 박스 업데이트
-        function updateStats() {
-            const list = document.getElementById('stats-list');
-            const periodLabel = document.getElementById('period-label');
-            periodLabel.textContent = currentPeriod;
-            
-            // 성과순 정렬
-            const sorted = Object.entries(ASSETS_DATA)
-                .map(([symbol, data]) => ({
-                    symbol,
-                    name: data.name,
-                    color: data.color,
-                    perf: data.performance[currentPeriod]
-                }))
-                .filter(a => a.perf !== null)
-                .sort((a, b) => b.perf - a.perf);
-            
-            list.innerHTML = sorted.map(asset => {
-                const perfClass = asset.perf >= 0 ? 'positive' : 'negative';
-                const perfSign = asset.perf >= 0 ? '+' : '';
-                const opacity = hiddenAssets.has(asset.symbol) ? '0.3' : '1';
-                
-                return `
-                    <li class="stats-item" style="opacity: ${opacity}">
-                        <div class="stats-asset">
-                            <div class="stats-dot" style="background: ${asset.color}"></div>
-                            <span class="stats-name">${asset.symbol} <span class="stats-symbol">(${asset.name})</span></span>
-                        </div>
-                        <span class="stats-perf ${perfClass}">${perfSign}${asset.perf}%</span>
-                    </li>
-                `;
-            }).join('');
+      },
+      plugins: [{
+        id: 'endLabels',
+        afterDraw: (chart) => {
+          const ctx = chart.ctx;
+          const chartArea = chart.chartArea;
+          const endpoints = [];
+
+          chart.data.datasets.forEach((dataset, i) => {
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+            const lastPoint = meta.data[meta.data.length - 1];
+            if (!lastPoint) return;
+            const value = parseFloat(dataset.data[dataset.data.length - 1].y);
+            endpoints.push({ y: lastPoint.y, value, label: dataset.label, color: dataset.borderColor });
+          });
+
+          endpoints.sort((a, b) => a.y - b.y);
+          const minGap = 16;
+          for (let i = 1; i < endpoints.length; i++) {
+            if (endpoints[i].y - endpoints[i-1].y < minGap) endpoints[i].y = endpoints[i-1].y + minGap;
+          }
+
+          ctx.save();
+          endpoints.forEach(ep => {
+            const sign = ep.value >= 0 ? '+' : '';
+            ctx.font = 'bold 10px JetBrains Mono, monospace';
+            ctx.fillStyle = ep.color;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${ep.label} ${sign}${ep.value.toFixed(1)}%`, chartArea.right + 6, ep.y);
+          });
+          ctx.restore();
         }
-        
-        // 범례 생성
-        function createLegend() {
-            const legend = document.getElementById('legend');
-            
-            legend.innerHTML = Object.entries(ASSETS_DATA).map(([symbol, data]) => `
-                <div class="legend-item" data-symbol="${symbol}">
-                    <div class="legend-dot" style="background: ${data.color}"></div>
-                    <span class="legend-label">${data.name} (${symbol})</span>
-                </div>
-            `).join('');
-            
-            // 클릭 이벤트
-            legend.querySelectorAll('.legend-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const symbol = item.dataset.symbol;
-                    if (hiddenAssets.has(symbol)) {
-                        hiddenAssets.delete(symbol);
-                        item.classList.remove('disabled');
-                    } else {
-                        hiddenAssets.add(symbol);
-                        item.classList.add('disabled');
-                    }
-                    updateChart();
-                    updateStats();
-                });
-            });
-        }
-        
-        // 기간 버튼 이벤트
-        document.querySelectorAll('.period-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentPeriod = btn.dataset.period;
-                updateChart();
-                updateStats();
-            });
-        });
-        
-        // 초기화
-        createLegend();
-        updateChart();
-        updateStats();
-    </script>
+      }]
+    });
+  }
+}
+
+function updateStats() {
+  const list = document.getElementById('stats-list');
+  document.getElementById('period-label').textContent = currentPeriod;
+
+  const sorted = Object.entries(ASSETS_DATA)
+    .map(([symbol, data]) => ({ symbol, name: data.name, color: data.color, perf: data.performance[currentPeriod] }))
+    .filter(a => a.perf !== null)
+    .sort((a, b) => b.perf - a.perf);
+
+  list.innerHTML = sorted.map(asset => {
+    const perfClass = asset.perf >= 0 ? 'positive' : 'negative';
+    const perfSign = asset.perf >= 0 ? '+' : '';
+    const opacity = hiddenAssets.has(asset.symbol) ? '0.3' : '1';
+    return `<li class="stats-item" style="opacity:${opacity}">
+      <div class="stats-asset">
+        <div class="stats-dot" style="background:${asset.color}"></div>
+        <span class="stats-name">${asset.symbol} <span class="stats-symbol">(${asset.name})</span></span>
+      </div>
+      <span class="stats-perf ${perfClass}">${perfSign}${asset.perf}%</span>
+    </li>`;
+  }).join('');
+}
+
+function createLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.entries(ASSETS_DATA).map(([symbol, data]) =>
+    `<div class="legend-item" data-symbol="${symbol}">
+      <div class="legend-dot" style="background:${data.color}"></div>
+      <span class="legend-label">${data.name} (${symbol})</span>
+    </div>`
+  ).join('');
+
+  legend.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const symbol = item.dataset.symbol;
+      if (hiddenAssets.has(symbol)) { hiddenAssets.delete(symbol); item.classList.remove('disabled'); }
+      else { hiddenAssets.add(symbol); item.classList.add('disabled'); }
+      updateChart();
+      updateStats();
+    });
+  });
+}
+
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    updateChart();
+    updateStats();
+  });
+});
+
+createLegend();
+updateChart();
+updateStats();
+</script>
 </body>
 </html>
