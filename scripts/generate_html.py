@@ -292,6 +292,18 @@ def generate_html():
 
         /* === MOBILE === */
         @media (max-width: 600px) {{
+            html, body {{
+                height: auto;              /* 📱 모바일: 고정 높이 해제 */
+                overflow: auto;            /* 📱 모바일: 스크롤 허용 */
+            }}
+            .container {{
+                height: auto;
+                min-height: 100%;
+            }}
+            .chart-container {{
+                min-height: 300px;         /* 📱 차트 최소 높이 ← 여기서 조절 */
+                height: 45vh;
+            }}
             .header {{ padding: 14px 12px 10px; }}
             .header h1 {{ font-size: 16px; }}
             .share-bar {{ gap: 4px; margin: 8px 0 2px; }}
@@ -310,7 +322,7 @@ def generate_html():
             }}
             .main-content {{
                 grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
+                grid-template-rows: auto auto;   /* 📱 자동 높이 */
                 gap: 8px;
                 padding: 0 10px;
             }}
@@ -393,7 +405,7 @@ def generate_html():
 
     <script>
         /* ====== SHARE ====== */
-        const SHARE_URL = 'https://herdvibe.com/sector-performance';
+        const SHARE_URL = 'https://herdvibe.com/25';
         const SHARE_TITLE = 'S&P 500 섹터별 퍼포먼스 비교 — Herdvibe';
         const SHARE_DESC = '11개 GICS 섹터 ETF 수익률 비교 | Herdvibe';
 
