@@ -738,5 +738,428 @@ def generate_html():
     print(f"✅ HTML 생성 완료: {output_path}")
 
 
+def generate_heatmap():
+    """히트맵 HTML 생성"""
+    data_path = Path(__file__).parent.parent / "data" / "performance.json"
+    
+    with open(data_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    
+    last_updated = data["lastUpdated"]
+    assets_json = json.dumps(data["assets"], ensure_ascii=False)
+    
+    html = f'''<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>섹터 로테이션 히트맵</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
+    <style>
+        :root {{
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --surface2: #111111;
+            --border: #1a1a1a;
+            --border-hover: #2a2a2a;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --text-muted: #52525b;
+            --green: #22c55e;
+            --red: #ef4444;
+            --cyan: #22d3ee;
+            --blue: #4a90ff;
+            --gold: #ffd644;
+            --mono: 'JetBrains Mono', monospace;
+            --sans: 'Noto Sans KR', -apple-system, sans-serif;
+            --radius: 12px;
+            --radius-sm: 8px;
+        }}
+
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        html {{ scrollbar-width: none; }}
+        html::-webkit-scrollbar {{ display: none; }}
+        html, body {{
+            height: 100%;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }}
+        body {{
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            padding: 0;
+            -webkit-overflow-scrolling: touch;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }}
+        .container {{
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 0 16px;
+        }}
+
+        /* ====== HEADER ====== */
+        .header {{
+            padding: 20px 20px 14px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }}
+        .header h1 {{
+            font-size: clamp(18px, 4vw, 26px);
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }}
+        .sub {{ font-size: 12px; color: var(--text-dim); }}
+        .time {{ font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 6px; }}
+
+        /* ====== SHARE ====== */
+        .share-bar {{ display: flex; gap: 5px; justify-content: center; margin: 10px 0 2px; flex-wrap: wrap; }}
+        .share-btn {{ display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-hover); background: var(--surface); color: #a1a1aa; font-size: 10px; cursor: pointer; font-family: var(--sans); transition: all 0.2s; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }}
+        .share-btn:hover {{ border-color: #444; color: var(--text); }}
+        .share-btn svg {{ width: 13px; height: 13px; flex-shrink: 0; }}
+        .share-btn.twitter:hover {{ border-color: #1d9bf0; color: #1d9bf0; }}
+        .share-btn.kakao:hover {{ border-color: #fee500; color: #fee500; }}
+        .share-btn.telegram:hover {{ border-color: #26a5e4; color: #26a5e4; }}
+        .share-btn.instagram:hover {{ border-color: #e1306c; color: #e1306c; }}
+        .share-btn.instagram.copied {{ border-color: var(--green); color: var(--green); }}
+        .share-btn.copy:hover {{ border-color: var(--green); color: var(--green); }}
+        .share-btn.copied {{ border-color: var(--green); color: var(--green); }}
+
+        .toast {{ position: fixed; bottom: 20px; right: 20px; background: var(--green); color: #000; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; pointer-events: none; }}
+        .toast.show {{ opacity: 1; transform: translateY(0); }}
+
+        /* ====== SORT CONTROLS ====== */
+        .sort-controls {{
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            padding: 14px 0 10px;
+        }}
+        .sort-btn {{
+            padding: 6px 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-dim);
+            font: 500 11px var(--sans);
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }}
+        .sort-btn:hover {{ color: var(--text); }}
+        .sort-btn.active {{
+            background: var(--cyan);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--cyan);
+        }}
+
+        /* ====== HEATMAP TABLE ====== */
+        .heatmap-wrap {{
+            padding: 0 0 12px;
+            overflow-x: auto;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }}
+        .heatmap-wrap::-webkit-scrollbar {{ display: none; }}
+
+        .heatmap-table {{
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 3px;
+            min-width: 500px;
+        }}
+        .heatmap-table th {{
+            font: 600 11px var(--mono);
+            color: var(--text-muted);
+            padding: 8px 4px;
+            text-align: center;
+            letter-spacing: 0.02em;
+        }}
+        .heatmap-table th.sector-header {{
+            text-align: left;
+            padding-left: 12px;
+            min-width: 140px;
+        }}
+        .heatmap-table td {{
+            text-align: center;
+            padding: 0;
+            border-radius: 6px;
+            position: relative;
+            height: 44px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }}
+        .heatmap-table td:hover {{
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(255,255,255,0.08);
+            z-index: 2;
+        }}
+        .heatmap-table td.sector-cell {{
+            background: transparent !important;
+            text-align: left;
+            padding-left: 12px;
+        }}
+        .heatmap-table td.sector-cell:hover {{
+            transform: none;
+            box-shadow: none;
+        }}
+        .sector-name {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .sector-dot {{
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }}
+        .sector-label {{
+            font: 600 12px var(--sans);
+            color: var(--text);
+            white-space: nowrap;
+        }}
+        .sector-ticker {{
+            font: 600 12px var(--mono);
+            color: var(--text-dim);
+        }}
+        .cell-value {{
+            font: 700 13px var(--mono);
+            position: relative;
+            z-index: 1;
+        }}
+
+        /* ====== LEGEND BAR ====== */
+        .legend-bar {{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 0 8px;
+        }}
+        .legend-gradient {{
+            width: 200px;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #dc2626, #7f1d1d, #1a1a1a, #14532d, #16a34a);
+        }}
+        .legend-label {{
+            font: 400 10px var(--mono);
+            color: var(--text-muted);
+        }}
+
+        /* ====== FOOTER ====== */
+        .footer {{
+            padding: 8px 16px 16px;
+            text-align: center;
+            font-size: 9px;
+            color: var(--text-muted);
+        }}
+
+        /* ====== MOBILE ====== */
+        @media (max-width: 600px) {{
+            .heatmap-table th {{ font-size: 9px; padding: 6px 2px; }}
+            .heatmap-table th.sector-header {{ min-width: 100px; }}
+            .sector-label {{ font-size: 11px; }}
+            .sector-ticker {{ font-size: 11px; }}
+            .cell-value {{ font-size: 11px; }}
+            .heatmap-table td {{ height: 38px; }}
+            .heatmap-table {{ min-width: 420px; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>섹터 로테이션 히트맵</h1>
+        <div class="sub">S&P 500 SPDR 섹터 ETF · 기간별 수익률 한눈에 비교</div>
+        <div class="time">마지막 업데이트: {last_updated}</div>
+    </div>
+
+    <div class="container">
+        <div class="share-bar">
+            <button class="share-btn twitter" onclick="shareTwitter()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
+            <button class="share-btn kakao" onclick="shareKakao()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-5.52 0-10 3.36-10 7.5 0 2.66 1.74 5 4.36 6.33-.14.53-.9 3.4-.93 3.61 0 0-.02.17.09.23.11.07.24.03.24.03.32-.04 3.7-2.42 4.28-2.83.62.09 1.27.13 1.96.13 5.52 0 10-3.36 10-7.5S17.52 3 12 3z"/></svg>카카오톡</button>
+            <button class="share-btn telegram" onclick="shareTelegram()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>텔레그램</button>
+            <button class="share-btn instagram" onclick="shareInstagram(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>인스타그램</button>
+            <button class="share-btn copy" onclick="copyLink(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>링크복사</button>
+        </div>
+
+        <div class="sort-controls">
+            <button class="sort-btn" data-sort="1W">1W 정렬</button>
+            <button class="sort-btn active" data-sort="1M">1M 정렬</button>
+            <button class="sort-btn" data-sort="3M">3M 정렬</button>
+            <button class="sort-btn" data-sort="YTD">YTD 정렬</button>
+            <button class="sort-btn" data-sort="12M">12M 정렬</button>
+        </div>
+
+        <div class="heatmap-wrap">
+            <table class="heatmap-table" id="heatmap">
+                <thead>
+                    <tr>
+                        <th class="sector-header">섹터</th>
+                        <th>1W</th>
+                        <th>1M</th>
+                        <th>3M</th>
+                        <th>YTD</th>
+                        <th>12M</th>
+                    </tr>
+                </thead>
+                <tbody id="heatmap-body"></tbody>
+            </table>
+        </div>
+
+        <div class="legend-bar">
+            <span class="legend-label">-20%</span>
+            <div class="legend-gradient"></div>
+            <span class="legend-label">+20%</span>
+        </div>
+
+        <div class="footer">데이터 출처: Yahoo Finance · SPDR 섹터 ETF 기준 · 투자 판단은 본인의 책임입니다</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        /* ====== SHARE ====== */
+        const SHARE_URL = 'https://herdvibe.com/107';
+        const SHARE_TITLE = '섹터 로테이션 히트맵 — Herdvibe';
+        const SHARE_DESC = 'S&P 500 섹터 ETF 기간별 수익률 히트맵 | Herdvibe';
+
+        function showToast(msg) {{
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }}
+        function shareTwitter() {{
+            window.open(`https://twitter.com/intent/tweet?text=${{encodeURIComponent(SHARE_TITLE)}}&url=${{encodeURIComponent(SHARE_URL)}}`, '_blank');
+        }}
+        function shareKakao() {{
+            if (window.Kakao && !Kakao.isInitialized()) Kakao.init('a43ed7b39fac35458f4f9df925a279b5');
+            if (window.Kakao) {{
+                Kakao.Share.sendDefault({{
+                    objectType: 'feed',
+                    content: {{ title: SHARE_TITLE, description: SHARE_DESC, imageUrl: 'https://herdvibe.com/og-heatmap.png', link: {{ mobileWebUrl: SHARE_URL, webUrl: SHARE_URL }} }}
+                }});
+            }}
+        }}
+        function shareTelegram() {{
+            window.open(`https://t.me/share/url?url=${{encodeURIComponent(SHARE_URL)}}&text=${{encodeURIComponent(SHARE_TITLE)}}`, '_blank');
+        }}
+        function shareInstagram(btn) {{
+            try {{
+                if (window.parent !== window) {{ window.parent.postMessage({{ type: 'copy', text: SHARE_URL }}, '*'); }}
+                else {{ navigator.clipboard.writeText(SHARE_URL); }}
+                const orig = btn.innerHTML;
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>복사됨!';
+                showToast('링크가 복사되었습니다 - 인스타그램에 붙여넣기 하세요');
+                setTimeout(() => {{ btn.classList.remove('copied'); btn.innerHTML = orig; }}, 2000);
+            }} catch(e) {{ showToast('복사 실패'); }}
+        }}
+        function copyLink(btn) {{
+            try {{
+                if (window.parent !== window) {{ window.parent.postMessage({{ type: 'copy', text: SHARE_URL }}, '*'); }}
+                else {{ navigator.clipboard.writeText(SHARE_URL); }}
+                const orig = btn.innerHTML;
+                btn.classList.add('copied');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>복사됨!';
+                showToast('링크가 복사되었습니다');
+                setTimeout(() => {{ btn.classList.remove('copied'); btn.innerHTML = orig; }}, 2000);
+            }} catch(e) {{ showToast('복사 실패'); }}
+        }}
+
+        /* ====== DATA ====== */
+        const ASSETS_DATA = {assets_json};
+
+        const periods = ['1W', '1M', '3M', 'YTD', '12M'];
+        let currentSort = '1M';
+
+        function getColor(value) {{
+            const clamped = Math.max(-20, Math.min(20, value));
+            const ratio = (clamped + 20) / 40;
+            if (ratio < 0.5) {{
+                const t = ratio / 0.5;
+                const r = Math.round(220 - t * 100);
+                const g = Math.round(38 + t * 20);
+                const b = Math.round(38 + t * 20);
+                return `rgb(${{r}}, ${{g}}, ${{b}})`;
+            }} else {{
+                const t = (ratio - 0.5) / 0.5;
+                const r = Math.round(58 - t * 36);
+                const g = Math.round(58 + t * 105);
+                const b = Math.round(58 - t * 20);
+                return `rgb(${{r}}, ${{g}}, ${{b}})`;
+            }}
+        }}
+
+        function getTextColor(value) {{
+            const abs = Math.abs(value);
+            if (abs > 8) return 'rgba(255,255,255,0.95)';
+            if (abs > 3) return 'rgba(255,255,255,0.8)';
+            return 'rgba(255,255,255,0.6)';
+        }}
+
+        function render() {{
+            const tbody = document.getElementById('heatmap-body');
+            const sorted = Object.entries(ASSETS_DATA)
+                .map(([ticker, data]) => ({{ ticker, ...data }}))
+                .sort((a, b) => b.performance[currentSort] - a.performance[currentSort]);
+
+            tbody.innerHTML = sorted.map(item => {{
+                const cells = periods.map(p => {{
+                    const val = item.performance[p];
+                    if (val === null || val === undefined) return '<td style="background:#111;">-</td>';
+                    const bg = getColor(val);
+                    const tc = getTextColor(val);
+                    const sign = val >= 0 ? '+' : '';
+                    return `<td style="background:${{bg}};"><span class="cell-value" style="color:${{tc}}">${{sign}}${{val.toFixed(1)}}%</span></td>`;
+                }}).join('');
+
+                return `<tr>
+                    <td class="sector-cell">
+                        <div class="sector-name">
+                            <div class="sector-dot" style="background:${{item.color}}"></div>
+                            <div>
+                                <span class="sector-label">${{item.name}}</span>
+                                <span class="sector-ticker"> ${{item.ticker}}</span>
+                            </div>
+                        </div>
+                    </td>
+                    ${{cells}}
+                </tr>`;
+            }}).join('');
+        }}
+
+        document.querySelectorAll('.sort-btn').forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentSort = btn.dataset.sort;
+                render();
+            }});
+        }});
+
+        render();
+    </script>
+</body>
+</html>'''
+    
+    output_path = Path(__file__).parent.parent / "heatmap.html"
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    
+    print(f"✅ 히트맵 HTML 생성 완료: {output_path}")
+
+
 if __name__ == "__main__":
     generate_html()
+    generate_heatmap()
