@@ -104,7 +104,8 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   <button class="share-btn" onclick="shareTwitter()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
   <button class="share-btn" onclick="kakaoShare()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>카카오톡</button>
   <button class="share-btn" onclick="shareTelegram()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.43.53-.47-.01-1.38-.27-2.05-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.74 3.98-1.73 6.64-2.87 7.97-3.44 3.8-1.6 4.59-1.88 5.1-1.89.11 0 .37.03.54.17.14.12.18.28.2.46-.01.06.01.24 0 .38z"/></svg>텔레그램</button>
-  <button class="share-btn" onclick="copyLink()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>링크복사</button>
+  <button class="share-btn" onclick="shareInstagram(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>인스타그램</button>
+  <button class="share-btn" onclick="copyLink(this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>링크복사</button>
 </div>
 
 <div class="chart-wrap">
@@ -166,7 +167,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
 <div class="toast" id="toast"></div>
 
 <script>
-const SHARE_URL='https://herdvibe.com/rrg';
+const SHARE_URL='https://herdvibe.com/107';
 const DATA_URL='./data/rrg.json';
 const Q_LABEL_KR={leading:'주도',weakening:'약화',lagging:'후행',improving:'개선'};
 
@@ -444,7 +445,17 @@ init();
 
 /* ---- Share ---- */
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
-function copyLink(){navigator.clipboard?navigator.clipboard.writeText(SHARE_URL).then(()=>showToast('링크 복사완료!')):showToast('복사 실패');}
+function flashCopied(btn){
+  btn.style.borderColor='#22c55e';btn.style.color='#22c55e';
+  var orig=btn.textContent;btn.textContent='✓ 복사완료';
+  setTimeout(()=>{btn.style.borderColor='';btn.style.color='';btn.textContent=orig;},1800);
+}
+function doCopy(btn){
+  if(navigator.clipboard){navigator.clipboard.writeText(SHARE_URL).then(()=>flashCopied(btn));}
+  else{var ta=document.createElement('textarea');ta.value=SHARE_URL;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');flashCopied(btn);}catch(e){showToast('복사 실패');}document.body.removeChild(ta);}
+}
+function copyLink(btn){doCopy(btn);}
+function shareInstagram(btn){doCopy(btn);}
 function shareTwitter(){window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent('S&P 500 섹터 RRG — 상대강도 회전 그래프')+'&url='+encodeURIComponent(SHARE_URL),'_blank');}
 function shareTelegram(){window.open('https://t.me/share/url?url='+encodeURIComponent(SHARE_URL)+'&text='+encodeURIComponent('S&P 500 섹터 RRG'),'_blank');}
 function ensureKakao(){if(typeof Kakao==='undefined')return false;if(!Kakao.isInitialized()){try{Kakao.init('YOUR_KAKAO_KEY');return true;}catch(e){return false;}}return true;}
