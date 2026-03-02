@@ -287,7 +287,7 @@ function drawQuadrants(){
   ctx.beginPath();ctx.moveTo(l,my);ctx.lineTo(r,my);ctx.stroke();
   ctx.setLineDash([]);ctx.restore();
 
-  ctx.save();ctx.font='600 10px "JetBrains Mono",monospace';ctx.globalAlpha=0.15;
+  ctx.save();ctx.font='600 10px "JetBrains Mono",monospace';ctx.globalAlpha=0.4;
   const p=8;
   ctx.fillStyle='#22c55e';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('LEADING',r-p,t+p);
   ctx.fillStyle='#eab308';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText('WEAKENING',r-p,b-p);
