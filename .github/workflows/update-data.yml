@@ -27,6 +27,10 @@ jobs:
         run: |
           python scripts/fetch_data.py
 
+      - name: 📡 Fetch RRG data
+        run: |
+          python scripts/fetch_rrg.py
+
       - name: 🔧 Generate HTML
         run: |
           python scripts/generate_html.py
@@ -35,6 +39,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/ index.html
+          git add data/ index.html rrg.html
           git diff --staged --quiet || git commit -m "📊 데이터 업데이트 $(date +'%Y-%m-%d %H:%M') UTC"
           git push
