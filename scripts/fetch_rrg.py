@@ -39,7 +39,7 @@ SECTORS = {
 # RRG 파라미터
 RS_PERIOD = 50       # RS-Ratio SMA 기간 (거래일)
 MOM_PERIOD = 10      # RS-Momentum SMA 기간
-TRAIL_WEEKS = 8      # 꼬리 길이 (주 단위)
+TRAIL_WEEKS = 4      # 꼬리 길이 (주 단위)
 FETCH_DAYS = 400     # 데이터 수집 기간
 
 
