@@ -264,11 +264,14 @@
 
         /* === TABLET === */
         @media (max-width: 1024px) {
+            html, body { overflow: auto; }
+            .container { height: auto; min-height: 100%; }
             .main-content {
                 grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
+                grid-template-rows: auto auto;
             }
-            .stats-box { max-height: 180px; }
+            .chart-container { min-height: 350px; height: 50vh; }
+            .stats-box { max-height: 200px; }
         }
 
         /* === MOBILE === */
