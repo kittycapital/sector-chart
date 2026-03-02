@@ -6,7 +6,6 @@
 <title>섹터 RRG — Relative Rotation Graph</title>
 <meta property="og:title" content="섹터 RRG — Relative Rotation Graph">
 <meta property="og:description" content="S&P 500 11개 섹터 ETF의 상대강도 회전을 실시간으로 추적합니다">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
@@ -21,26 +20,33 @@
 body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-smoothing:antialiased}
 .page{max-width:960px;margin:0 auto;padding:24px 16px 40px}
 
-/* Header */
 .hdr{text-align:center;margin-bottom:24px}
-.hdr h1{font-family:var(--sans);font-size:clamp(22px,5vw,32px);font-weight:900;letter-spacing:-.5px;margin-bottom:4px}
+.hdr h1{font-size:clamp(22px,5vw,32px);font-weight:900;letter-spacing:-.5px;margin-bottom:4px}
 .hdr .sub{font-size:13px;color:var(--t3)}
 .hdr .updated{font-size:11px;color:var(--t4);font-family:var(--mono);margin-top:4px}
 
-/* Share */
 .share-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .share-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:20px;border:1px solid var(--bdr2);background:var(--s1);color:var(--t3);font-size:12px;font-family:var(--sans);cursor:pointer;transition:all .2s}
 .share-btn:hover{border-color:var(--t3);color:var(--t1)}
 .share-btn svg{width:14px;height:14px}
 
-/* Chart container */
 .chart-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:20px}
 .chart-top{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--bdr)}
 .chart-top h2{font-size:15px;font-weight:700}
-.chart-top .badge{font-size:10px;font-family:var(--mono);padding:3px 10px;border-radius:12px;background:rgba(59,130,246,.12);color:var(--blue)}
-.chart-body{position:relative;padding:12px;height:clamp(360px,55vw,560px)}
+.chart-top .hint{font-size:11px;color:var(--t4);font-family:var(--mono)}
+.chart-body{position:relative;padding:12px;height:clamp(380px,58vw,580px)}
 
-/* Legend grid */
+.hover-panel{position:absolute;top:16px;right:16px;background:rgba(10,10,10,.92);border:1px solid var(--bdr2);border-radius:10px;padding:12px 16px;z-index:10;opacity:0;transition:opacity .2s;pointer-events:none;min-width:180px}
+.hover-panel.show{opacity:1}
+.hp-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.hp-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.hp-name{font-size:14px;font-weight:700}
+.hp-sym{font-family:var(--mono);font-size:12px;color:var(--t3)}
+.hp-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.hp-row .label{color:var(--t3)}
+.hp-row .val{font-family:var(--mono);font-weight:600}
+.hp-quad{display:inline-block;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;font-weight:600;margin-top:4px}
+
 .legend-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:16px 18px;margin-bottom:20px}
 .legend-wrap h3{font-size:14px;font-weight:700;margin-bottom:12px}
 .q-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -57,7 +63,6 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
 .q-improving{background:rgba(59,130,246,.06);border-color:rgba(59,130,246,.15)}
 .q-improving .q-dot{background:var(--blue)}
 
-/* Sector table */
 .tbl-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:20px}
 .tbl-wrap h3{font-size:14px;font-weight:700;padding:14px 18px;border-bottom:1px solid var(--bdr)}
 .stbl{width:100%;border-collapse:collapse}
@@ -67,21 +72,13 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
 .stbl .sym{font-family:var(--mono);font-weight:600}
 .stbl .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .stbl .val{font-family:var(--mono);font-size:12px}
-.stbl .q-tag{font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;font-weight:600}
+.q-tag{font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;font-weight:600}
 .q-tag-leading{background:rgba(34,197,94,.15);color:var(--green)}
 .q-tag-weakening{background:rgba(234,179,8,.15);color:var(--yellow)}
 .q-tag-lagging{background:rgba(239,68,68,.15);color:var(--red)}
 .q-tag-improving{background:rgba(59,130,246,.15);color:var(--blue)}
 
-/* Tooltip */
-.tt{position:absolute;pointer-events:none;background:rgba(10,10,10,.95);border:1px solid var(--bdr2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--t1);white-space:nowrap;z-index:10;opacity:0;transition:opacity .15s}
-.tt .tt-name{font-weight:700;margin-bottom:2px}
-.tt .tt-val{font-family:var(--mono);font-size:11px;color:var(--t3)}
-
-/* Footer */
 .footer{text-align:center;padding:16px 0;font-size:11px;color:var(--t4);line-height:1.7}
-
-/* Toast */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--s2);border:1px solid var(--bdr2);color:var(--t1);padding:10px 20px;border-radius:24px;font-size:13px;z-index:999;opacity:0;transition:all .3s ease}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
@@ -90,6 +87,7 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   .q-grid{grid-template-columns:1fr}
   .chart-body{height:340px}
   .stbl td,.stbl th{padding:8px 10px;font-size:12px}
+  .hover-panel{top:8px;right:8px;padding:10px 12px;min-width:150px}
 }
 </style>
 </head>
@@ -102,7 +100,6 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   <div class="updated" id="updated">—</div>
 </div>
 
-<!-- Share -->
 <div class="share-row">
   <button class="share-btn" onclick="shareTwitter()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
   <button class="share-btn" onclick="kakaoShare()"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>카카오톡</button>
@@ -110,19 +107,26 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   <button class="share-btn" onclick="copyLink()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>링크복사</button>
 </div>
 
-<!-- RRG Chart -->
 <div class="chart-wrap">
   <div class="chart-top">
     <h2>Relative Rotation Graph</h2>
-    <span class="badge" id="trailBadge">8주 궤적</span>
+    <span class="hint">섹터에 마우스를 올려보세요</span>
   </div>
   <div class="chart-body">
-    <canvas id="rrgChart"></canvas>
-    <div class="tt" id="tooltip"></div>
+    <canvas id="rrgCanvas"></canvas>
+    <div class="hover-panel" id="hoverPanel">
+      <div class="hp-head">
+        <span class="hp-dot" id="hpDot"></span>
+        <span class="hp-name" id="hpName"></span>
+        <span class="hp-sym" id="hpSym"></span>
+      </div>
+      <div class="hp-row"><span class="label">RS-Ratio</span><span class="val" id="hpRatio"></span></div>
+      <div class="hp-row"><span class="label">RS-Momentum</span><span class="val" id="hpMom"></span></div>
+      <div id="hpQuadWrap" style="margin-top:6px"></div>
+    </div>
   </div>
 </div>
 
-<!-- Quadrant Legend -->
 <div class="legend-wrap">
   <h3>4분면 해석</h3>
   <div class="q-grid">
@@ -145,7 +149,6 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   </div>
 </div>
 
-<!-- Sector table -->
 <div class="tbl-wrap">
   <h3>섹터별 상세</h3>
   <table class="stbl">
@@ -159,304 +162,290 @@ body{background:var(--bg);color:var(--t1);font-family:var(--sans);-webkit-font-s
   모든 투자 결정은 본인의 판단과 책임하에 이루어져야 합니다.
 </div>
 
-</div><!-- /page -->
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
-/* ========== Config ========== */
-const SHARE_URL = 'https://herdvibe.com/rrg';
-const DATA_URL = './data/rrg.json';
+const SHARE_URL='https://herdvibe.com/rrg';
+const DATA_URL='./data/rrg.json';
+const Q_LABEL_KR={leading:'주도',weakening:'약화',lagging:'후행',improving:'개선'};
 
-const Q_COLORS = {
-  leading:   {bg:'rgba(34,197,94,0.07)',  border:'rgba(34,197,94,0.25)'},
-  weakening: {bg:'rgba(234,179,8,0.07)',   border:'rgba(234,179,8,0.25)'},
-  lagging:   {bg:'rgba(239,68,68,0.07)',   border:'rgba(239,68,68,0.25)'},
-  improving: {bg:'rgba(59,130,246,0.07)',  border:'rgba(59,130,246,0.25)'},
-};
-const Q_LABELS = {leading:'Leading',weakening:'Weakening',lagging:'Lagging',improving:'Improving'};
-const Q_LABEL_KR = {leading:'주도',weakening:'약화',lagging:'후행',improving:'개선'};
+/* ============================================
+   Custom Canvas RRG
+   Default: dots + short direction arrow
+   Hover:   highlight + 4-week trail + fade others
+   ============================================ */
 
-/* ========== Quadrant Background Plugin ========== */
-const quadrantPlugin = {
-  id: 'quadrantBg',
-  beforeDraw(chart) {
-    const {ctx, chartArea:{left,right,top,bottom}, scales:{x,y}} = chart;
-    const cx = x.getPixelForValue(100);
-    const cy = y.getPixelForValue(100);
+let sectorsData=null, sectorKeys=[];
+let canvas, ctx;
+let chartArea={l:0,r:0,t:0,b:0};
+let xRange={min:96,max:104}, yRange={min:96,max:104};
+let hoveredIdx=-1, DPR=1;
 
-    // Clamp to chart area
-    const mx = Math.max(left, Math.min(right, cx));
-    const my = Math.max(top, Math.min(bottom, cy));
-
-    const quads = [
-      {x1:mx,  y1:top,  x2:right, y2:my,     q:'leading'},
-      {x1:mx,  y1:my,   x2:right, y2:bottom,  q:'weakening'},
-      {x1:left,y1:my,   x2:mx,    y2:bottom,  q:'lagging'},
-      {x1:left,y1:top,  x2:mx,    y2:my,      q:'improving'},
-    ];
-
-    quads.forEach(({x1,y1,x2,y2,q}) => {
-      ctx.fillStyle = Q_COLORS[q].bg;
-      ctx.fillRect(x1,y1,x2-x1,y2-y1);
-    });
-
-    // Center lines
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(mx,top); ctx.lineTo(mx,bottom); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(left,my); ctx.lineTo(right,my); ctx.stroke();
-    ctx.restore();
-
-    // Quadrant labels
-    ctx.save();
-    ctx.font = '600 11px "JetBrains Mono",monospace';
-    ctx.globalAlpha = 0.2;
-    const pad = 10;
-    ctx.fillStyle = '#22c55e'; ctx.textAlign='right'; ctx.textBaseline='top';
-    ctx.fillText('LEADING', right-pad, top+pad);
-    ctx.fillStyle = '#eab308'; ctx.textAlign='right'; ctx.textBaseline='bottom';
-    ctx.fillText('WEAKENING', right-pad, bottom-pad);
-    ctx.fillStyle = '#ef4444'; ctx.textAlign='left'; ctx.textBaseline='bottom';
-    ctx.fillText('LAGGING', left+pad, bottom-pad);
-    ctx.fillStyle = '#3b82f6'; ctx.textAlign='left'; ctx.textBaseline='top';
-    ctx.fillText('IMPROVING', left+pad, top+pad);
-    ctx.restore();
-  }
-};
-
-/* ========== Trail Lines Plugin ========== */
-const trailPlugin = {
-  id: 'trailLines',
-  afterDatasetsDraw(chart) {
-    const {ctx} = chart;
-    const meta = chart._trailMeta;
-    if (!meta) return;
-
-    meta.forEach(({trail, color}) => {
-      if (trail.length < 2) return;
-
-      const pts = trail.map(p => ({
-        px: chart.scales.x.getPixelForValue(p.rs_ratio),
-        py: chart.scales.y.getPixelForValue(p.rs_momentum),
-      }));
-
-      // Draw trail segments with increasing opacity
-      for (let i = 1; i < pts.length; i++) {
-        const alpha = 0.15 + (i / pts.length) * 0.6;
-        const width = 1 + (i / pts.length) * 1.5;
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = alpha;
-        ctx.lineWidth = width;
-        ctx.beginPath();
-        ctx.moveTo(pts[i-1].px, pts[i-1].py);
-        ctx.lineTo(pts[i].px, pts[i].py);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Arrowhead on last segment
-      if (pts.length >= 2) {
-        const last = pts[pts.length - 1];
-        const prev = pts[pts.length - 2];
-        const angle = Math.atan2(last.py - prev.py, last.px - prev.px);
-        const size = 5;
-        ctx.save();
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.8;
-        ctx.beginPath();
-        ctx.moveTo(last.px, last.py);
-        ctx.lineTo(last.px - size * Math.cos(angle - 0.5), last.py - size * Math.sin(angle - 0.5));
-        ctx.lineTo(last.px - size * Math.cos(angle + 0.5), last.py - size * Math.sin(angle + 0.5));
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-    });
-  }
-};
-
-/* ========== Label Plugin ========== */
-const labelPlugin = {
-  id: 'sectorLabels',
-  afterDatasetsDraw(chart) {
-    const {ctx} = chart;
-    const ds = chart.data.datasets[0];
-    if (!ds || !ds.data) return;
-
-    ctx.save();
-    ctx.font = '600 10px "JetBrains Mono",monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'bottom';
-
-    ds.data.forEach((pt, i) => {
-      const meta = chart.getDatasetMeta(0).data[i];
-      if (!meta) return;
-      const px = meta.x;
-      const py = meta.y;
-      ctx.fillStyle = ds.pointBackgroundColor[i] || '#fff';
-      ctx.globalAlpha = 0.9;
-      ctx.fillText(pt.label || '', px + 7, py - 4);
-    });
-    ctx.restore();
-  }
-};
-
-/* ========== Chart ========== */
-let rrgChart = null;
-
-function buildChart(sectors) {
-  const canvas = document.getElementById('rrgChart');
-  const ctx = canvas.getContext('2d');
-
-  // Prepare data points and trail meta
-  const points = [];
-  const bgColors = [];
-  const borderColors = [];
-  const trailMeta = [];
-
-  // Calculate axis range
-  let minR=100,maxR=100,minM=100,maxM=100;
-  Object.entries(sectors).forEach(([sym, s]) => {
-    const c = s.current;
-    minR = Math.min(minR, c.rs_ratio);
-    maxR = Math.max(maxR, c.rs_ratio);
-    minM = Math.min(minM, c.rs_momentum);
-    maxM = Math.max(maxM, c.rs_momentum);
-    s.trail.forEach(t => {
-      minR = Math.min(minR, t.rs_ratio);
-      maxR = Math.max(maxR, t.rs_ratio);
-      minM = Math.min(minM, t.rs_momentum);
-      maxM = Math.max(maxM, t.rs_momentum);
-    });
-  });
-
-  const padR = Math.max((maxR - minR) * 0.15, 0.3);
-  const padM = Math.max((maxM - minM) * 0.15, 0.3);
-
-  Object.entries(sectors).forEach(([sym, s]) => {
-    points.push({
-      x: s.current.rs_ratio,
-      y: s.current.rs_momentum,
-      label: sym,
-      name: s.name,
-      quadrant: s.quadrant,
-    });
-    bgColors.push(s.color);
-    borderColors.push(s.color);
-    trailMeta.push({trail: s.trail, color: s.color});
-  });
-
-  rrgChart = new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      datasets: [{
-        data: points,
-        pointRadius: 6,
-        pointHoverRadius: 9,
-        pointBackgroundColor: bgColors,
-        pointBorderColor: borderColors,
-        pointBorderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {duration: 800, easing: 'easeOutQuart'},
-      plugins: {
-        legend: {display: false},
-        tooltip: {enabled: false},
-      },
-      scales: {
-        x: {
-          title: {display: true, text: 'RS-Ratio →', color: '#71717a', font: {family: '"JetBrains Mono"', size: 11, weight: '600'}},
-          min: Math.floor((minR - padR) * 10) / 10,
-          max: Math.ceil((maxR + padR) * 10) / 10,
-          grid: {color: 'rgba(255,255,255,0.03)', drawBorder: false},
-          ticks: {color: '#52525b', font: {family: '"JetBrains Mono"', size: 10},
-            callback: v => v.toFixed(1)},
-        },
-        y: {
-          title: {display: true, text: '↑ RS-Momentum', color: '#71717a', font: {family: '"JetBrains Mono"', size: 11, weight: '600'}},
-          min: Math.floor((minM - padM) * 10) / 10,
-          max: Math.ceil((maxM + padM) * 10) / 10,
-          grid: {color: 'rgba(255,255,255,0.03)', drawBorder: false},
-          ticks: {color: '#52525b', font: {family: '"JetBrains Mono"', size: 10},
-            callback: v => v.toFixed(1)},
-        }
-      },
-      onHover(e, els) {
-        const tt = document.getElementById('tooltip');
-        if (els.length) {
-          const pt = points[els[0].index];
-          tt.innerHTML = `<div class="tt-name"><span style="color:${bgColors[els[0].index]}">●</span> ${pt.label} ${pt.name}</div><div class="tt-val">RS-Ratio: ${pt.x.toFixed(3)} · RS-Mom: ${pt.y.toFixed(3)}</div><div class="tt-val">${Q_LABEL_KR[pt.quadrant]}</div>`;
-          tt.style.opacity = '1';
-          tt.style.left = (e.x + 14) + 'px';
-          tt.style.top = (e.y - 10) + 'px';
-        } else {
-          tt.style.opacity = '0';
-        }
-      }
-    },
-    plugins: [quadrantPlugin, trailPlugin, labelPlugin]
-  });
-
-  rrgChart._trailMeta = trailMeta;
+function initCanvas(){
+  canvas=document.getElementById('rrgCanvas');
+  ctx=canvas.getContext('2d');
+  DPR=window.devicePixelRatio||1;
+  resizeCanvas();
+  canvas.addEventListener('mousemove',onMouseMove);
+  canvas.addEventListener('mouseleave',onMouseLeave);
+  canvas.addEventListener('touchstart',onTouchStart,{passive:true});
+  canvas.addEventListener('touchend',onTouchEnd);
+  window.addEventListener('resize',()=>{resizeCanvas();draw();});
 }
 
-/* ========== Sector table ========== */
-function buildTable(sectors) {
-  const tbody = document.getElementById('sectorTbody');
-  const sorted = Object.entries(sectors).sort((a,b) => b[1].current.rs_ratio - a[1].current.rs_ratio);
+function resizeCanvas(){
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*DPR; canvas.height=rect.height*DPR;
+  canvas.style.width=rect.width+'px'; canvas.style.height=rect.height+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const w=rect.width,h=rect.height;
+  chartArea={l:52,r:w-16,t:16,b:h-36};
+}
 
-  tbody.innerHTML = sorted.map(([sym, s]) => {
-    const c = s.current;
-    const q = s.quadrant;
-    return `<tr>
-      <td><span class="dot" style="background:${s.color}"></span><span class="sym">${sym}</span> ${s.name}</td>
-      <td class="val">${c.rs_ratio.toFixed(2)}</td>
-      <td class="val">${c.rs_momentum.toFixed(2)}</td>
-      <td><span class="q-tag q-tag-${q}">${Q_LABEL_KR[q]}</span></td>
-    </tr>`;
+function xToPixel(v){return chartArea.l+(v-xRange.min)/(xRange.max-xRange.min)*(chartArea.r-chartArea.l);}
+function yToPixel(v){return chartArea.b-(v-yRange.min)/(yRange.max-yRange.min)*(chartArea.b-chartArea.t);}
+
+function calcRange(){
+  let minR=100,maxR=100,minM=100,maxM=100;
+  sectorKeys.forEach(sym=>{
+    sectorsData[sym].trail.forEach(t=>{
+      minR=Math.min(minR,t.rs_ratio); maxR=Math.max(maxR,t.rs_ratio);
+      minM=Math.min(minM,t.rs_momentum); maxM=Math.max(maxM,t.rs_momentum);
+    });
+  });
+  const padR=Math.max((maxR-minR)*0.12,0.5);
+  const padM=Math.max((maxM-minM)*0.12,0.5);
+  xRange={min:Math.floor((minR-padR)*10)/10,max:Math.ceil((maxR+padR)*10)/10};
+  yRange={min:Math.floor((minM-padM)*10)/10,max:Math.ceil((maxM+padM)*10)/10};
+}
+
+/* ---- Main draw ---- */
+function draw(){
+  const w=canvas.width/DPR, h=canvas.height/DPR;
+  ctx.clearRect(0,0,w,h);
+  drawQuadrants();
+  drawGrid();
+  drawAxes();
+
+  sectorKeys.forEach((sym,i)=>{
+    const s=sectorsData[sym];
+    const isHovered=(hoveredIdx===i);
+    const isFaded=(hoveredIdx!==-1 && !isHovered);
+    const alpha=isFaded?0.12:1.0;
+
+    // Hovered → draw full trail
+    if(isHovered && s.trail.length>=2) drawTrail(s.trail,s.color);
+
+    // Direction arrow (prev → current)
+    if(s.trail.length>=2){
+      const prev=s.trail[s.trail.length-2];
+      const curr=s.trail[s.trail.length-1];
+      drawArrow(prev.rs_ratio,prev.rs_momentum,curr.rs_ratio,curr.rs_momentum,s.color,alpha,isHovered);
+    }
+
+    // Dot
+    const c=s.current;
+    const px=xToPixel(c.rs_ratio), py=yToPixel(c.rs_momentum);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    if(isHovered){ctx.shadowColor=s.color;ctx.shadowBlur=14;}
+    ctx.beginPath();
+    ctx.arc(px,py,isHovered?7:5.5,0,Math.PI*2);
+    ctx.fillStyle=s.color;
+    ctx.fill();
+    ctx.strokeStyle=isHovered?'#fff':'rgba(255,255,255,0.25)';
+    ctx.lineWidth=isHovered?2:1;
+    ctx.stroke();
+    ctx.restore();
+
+    // Label
+    ctx.save();
+    ctx.globalAlpha=isFaded?0.12:0.85;
+    ctx.font=(isHovered?'700 12':'600 10')+'px "JetBrains Mono",monospace';
+    ctx.fillStyle=s.color;
+    ctx.textAlign='left'; ctx.textBaseline='bottom';
+    ctx.fillText(sym,px+9,py-5);
+    ctx.restore();
+  });
+}
+
+function drawQuadrants(){
+  const cx=xToPixel(100), cy=yToPixel(100);
+  const{l,r,t,b}=chartArea;
+  const mx=Math.max(l,Math.min(r,cx)), my=Math.max(t,Math.min(b,cy));
+
+  [{x1:mx,y1:t,x2:r,y2:my,c:'rgba(34,197,94,0.05)'},
+   {x1:mx,y1:my,x2:r,y2:b,c:'rgba(234,179,8,0.05)'},
+   {x1:l,y1:my,x2:mx,y2:b,c:'rgba(239,68,68,0.05)'},
+   {x1:l,y1:t,x2:mx,y2:my,c:'rgba(59,130,246,0.05)'}
+  ].forEach(q=>{ctx.fillStyle=q.c;ctx.fillRect(q.x1,q.y1,q.x2-q.x1,q.y2-q.y1);});
+
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(mx,t);ctx.lineTo(mx,b);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(l,my);ctx.lineTo(r,my);ctx.stroke();
+  ctx.setLineDash([]);ctx.restore();
+
+  ctx.save();ctx.font='600 10px "JetBrains Mono",monospace';ctx.globalAlpha=0.15;
+  const p=8;
+  ctx.fillStyle='#22c55e';ctx.textAlign='right';ctx.textBaseline='top';ctx.fillText('LEADING',r-p,t+p);
+  ctx.fillStyle='#eab308';ctx.textAlign='right';ctx.textBaseline='bottom';ctx.fillText('WEAKENING',r-p,b-p);
+  ctx.fillStyle='#ef4444';ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillText('LAGGING',l+p,b-p);
+  ctx.fillStyle='#3b82f6';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText('IMPROVING',l+p,t+p);
+  ctx.restore();
+}
+
+function drawGrid(){
+  ctx.save();ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=0.5;
+  const{l,r,t,b}=chartArea;
+  const xStep=niceStep(xRange.max-xRange.min,6);
+  let xV=Math.ceil(xRange.min/xStep)*xStep;
+  while(xV<=xRange.max){const px=xToPixel(xV);if(px>l&&px<r){ctx.beginPath();ctx.moveTo(px,t);ctx.lineTo(px,b);ctx.stroke();}xV+=xStep;}
+  const yStep=niceStep(yRange.max-yRange.min,6);
+  let yV=Math.ceil(yRange.min/yStep)*yStep;
+  while(yV<=yRange.max){const py=yToPixel(yV);if(py>t&&py<b){ctx.beginPath();ctx.moveTo(l,py);ctx.lineTo(r,py);ctx.stroke();}yV+=yStep;}
+  ctx.restore();
+}
+
+function drawAxes(){
+  ctx.save();ctx.font='10px "JetBrains Mono",monospace';ctx.fillStyle='#52525b';
+  const{l,r,t,b}=chartArea;
+
+  const xStep=niceStep(xRange.max-xRange.min,6);
+  let xV=Math.ceil(xRange.min/xStep)*xStep;
+  ctx.textAlign='center';ctx.textBaseline='top';
+  while(xV<=xRange.max){const px=xToPixel(xV);if(px>l+20&&px<r-20)ctx.fillText(xV.toFixed(1),px,b+6);xV+=xStep;}
+
+  const yStep=niceStep(yRange.max-yRange.min,6);
+  let yV=Math.ceil(yRange.min/yStep)*yStep;
+  ctx.textAlign='right';ctx.textBaseline='middle';
+  while(yV<=yRange.max){const py=yToPixel(yV);if(py>t+10&&py<b-10)ctx.fillText(yV.toFixed(1),l-6,py);yV+=yStep;}
+
+  ctx.font='600 11px "JetBrains Mono",monospace';ctx.fillStyle='#71717a';
+  ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.fillText('RS-Ratio \u2192',(l+r)/2,b+18);
+  ctx.save();ctx.translate(14,(t+b)/2);ctx.rotate(-Math.PI/2);
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('\u2191 RS-Momentum',0,0);
+  ctx.restore();ctx.restore();
+}
+
+function drawTrail(trail,color){
+  if(trail.length<2)return;
+  const pts=trail.map(p=>({px:xToPixel(p.rs_ratio),py:yToPixel(p.rs_momentum)}));
+  for(let i=1;i<pts.length;i++){
+    const progress=i/(pts.length-1);
+    ctx.save();
+    ctx.strokeStyle=color;
+    ctx.globalAlpha=0.1+progress*0.5;
+    ctx.lineWidth=1+progress*1.5;
+    ctx.beginPath();ctx.moveTo(pts[i-1].px,pts[i-1].py);ctx.lineTo(pts[i].px,pts[i].py);ctx.stroke();
+    ctx.restore();
+    // Small trail dots
+    if(i<pts.length-1){
+      ctx.save();ctx.globalAlpha=(0.1+progress*0.5)*0.6;ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(pts[i].px,pts[i].py,2,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+  }
+}
+
+function drawArrow(x1,y1,x2,y2,color,alpha,isHovered){
+  const px1=xToPixel(x1),py1=yToPixel(y1),px2=xToPixel(x2),py2=yToPixel(y2);
+  const dx=px2-px1,dy=py2-py1,dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<2)return;
+  const angle=Math.atan2(dy,dx);
+  const lineLen=Math.min(dist,isHovered?dist:18);
+  const sx=px2-Math.cos(angle)*lineLen, sy=py2-Math.sin(angle)*lineLen;
+
+  ctx.save();
+  ctx.globalAlpha=alpha*(isHovered?0.8:0.5);
+  ctx.strokeStyle=color;ctx.lineWidth=isHovered?2:1.5;
+  ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(px2,py2);ctx.stroke();
+
+  const sz=isHovered?6:4.5;
+  ctx.fillStyle=color;ctx.globalAlpha=alpha*(isHovered?0.9:0.6);
+  ctx.beginPath();
+  ctx.moveTo(px2+Math.cos(angle)*3,py2+Math.sin(angle)*3);
+  ctx.lineTo(px2-sz*Math.cos(angle-0.45),py2-sz*Math.sin(angle-0.45));
+  ctx.lineTo(px2-sz*Math.cos(angle+0.45),py2-sz*Math.sin(angle+0.45));
+  ctx.closePath();ctx.fill();ctx.restore();
+}
+
+function niceStep(range,target){
+  const rough=range/target,mag=Math.pow(10,Math.floor(Math.log10(rough))),res=rough/mag;
+  let n; if(res<=1.5)n=1;else if(res<=3)n=2;else if(res<=7)n=5;else n=10;
+  return n*mag;
+}
+
+/* ---- Interaction ---- */
+function findNearest(mx,my){
+  let best=-1,bestDist=22;
+  sectorKeys.forEach((sym,i)=>{
+    const c=sectorsData[sym].current;
+    const d=Math.sqrt((mx-xToPixel(c.rs_ratio))**2+(my-yToPixel(c.rs_momentum))**2);
+    if(d<bestDist){bestDist=d;best=i;}
+  });
+  return best;
+}
+
+function onMouseMove(e){
+  const rect=canvas.getBoundingClientRect();
+  const idx=findNearest(e.clientX-rect.left,e.clientY-rect.top);
+  if(idx!==hoveredIdx){hoveredIdx=idx;draw();updateHoverPanel();}
+  canvas.style.cursor=idx>=0?'pointer':'default';
+}
+function onMouseLeave(){hoveredIdx=-1;draw();updateHoverPanel();canvas.style.cursor='default';}
+function onTouchStart(e){
+  const t=e.touches[0],rect=canvas.getBoundingClientRect();
+  hoveredIdx=findNearest(t.clientX-rect.left,t.clientY-rect.top);
+  draw();updateHoverPanel();
+}
+function onTouchEnd(){setTimeout(()=>{hoveredIdx=-1;draw();updateHoverPanel();},2500);}
+
+function updateHoverPanel(){
+  const panel=document.getElementById('hoverPanel');
+  if(hoveredIdx<0){panel.classList.remove('show');return;}
+  const sym=sectorKeys[hoveredIdx],s=sectorsData[sym],c=s.current,q=s.quadrant;
+  document.getElementById('hpDot').style.background=s.color;
+  document.getElementById('hpName').textContent=s.name;
+  document.getElementById('hpSym').textContent=sym;
+  document.getElementById('hpRatio').textContent=c.rs_ratio.toFixed(3);
+  document.getElementById('hpMom').textContent=c.rs_momentum.toFixed(3);
+  document.getElementById('hpQuadWrap').innerHTML='<span class="q-tag q-tag-'+q+'">'+Q_LABEL_KR[q]+'</span>';
+  panel.classList.add('show');
+}
+
+/* ---- Table ---- */
+function buildTable(sectors){
+  const tbody=document.getElementById('sectorTbody');
+  const sorted=Object.entries(sectors).sort((a,b)=>b[1].current.rs_ratio-a[1].current.rs_ratio);
+  tbody.innerHTML=sorted.map(([sym,s])=>{
+    const c=s.current,q=s.quadrant;
+    return '<tr><td><span class="dot" style="background:'+s.color+'"></span><span class="sym">'+sym+'</span> '+s.name+'</td><td class="val">'+c.rs_ratio.toFixed(2)+'</td><td class="val">'+c.rs_momentum.toFixed(2)+'</td><td><span class="q-tag q-tag-'+q+'">'+Q_LABEL_KR[q]+'</span></td></tr>';
   }).join('');
 }
 
-/* ========== Load ========== */
-async function init() {
-  try {
-    const res = await fetch(DATA_URL);
-    const data = await res.json();
-
-    document.getElementById('updated').textContent =
-      `마지막 업데이트: ${data.lastUpdated} · 벤치마크: ${data.benchmark} · ${data.params.trail_weeks}주 궤적`;
-    document.getElementById('trailBadge').textContent =
-      `${data.params.trail_weeks}주 궤적`;
-
-    buildChart(data.sectors);
-    buildTable(data.sectors);
-
-    // postMessage for iframe auto-resize
-    setTimeout(() => {
-      const h = document.documentElement.scrollHeight;
-      window.parent.postMessage({type:'resize',height:h},'*');
-    }, 500);
-  } catch(e) {
-    console.error('데이터 로드 실패:', e);
-    document.getElementById('updated').textContent = '데이터를 불러올 수 없습니다';
+/* ---- Init ---- */
+async function init(){
+  try{
+    const res=await fetch(DATA_URL);
+    const data=await res.json();
+    sectorsData=data.sectors;
+    sectorKeys=Object.keys(sectorsData);
+    document.getElementById('updated').textContent='마지막 업데이트: '+data.lastUpdated+' · 벤치마크: '+data.benchmark;
+    initCanvas();calcRange();draw();buildTable(sectorsData);
+    setTimeout(()=>{window.parent.postMessage({type:'resize',height:document.documentElement.scrollHeight},'*');},500);
+  }catch(e){
+    console.error('데이터 로드 실패:',e);
+    document.getElementById('updated').textContent='데이터를 불러올 수 없습니다';
   }
 }
-
 init();
 
-/* ========== Share functions ========== */
-function showToast(msg){
-  const t=document.getElementById('toast');t.textContent=msg;
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);
-}
+/* ---- Share ---- */
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 function copyLink(){navigator.clipboard?navigator.clipboard.writeText(SHARE_URL).then(()=>showToast('링크 복사완료!')):showToast('복사 실패');}
-function shareTwitter(){window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent('S&P 500 섹터 RRG — 상대강도 회전 그래프')+`&url=${encodeURIComponent(SHARE_URL)}`,'_blank');}
+function shareTwitter(){window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent('S&P 500 섹터 RRG — 상대강도 회전 그래프')+'&url='+encodeURIComponent(SHARE_URL),'_blank');}
 function shareTelegram(){window.open('https://t.me/share/url?url='+encodeURIComponent(SHARE_URL)+'&text='+encodeURIComponent('S&P 500 섹터 RRG'),'_blank');}
 function ensureKakao(){if(typeof Kakao==='undefined')return false;if(!Kakao.isInitialized()){try{Kakao.init('YOUR_KAKAO_KEY');return true;}catch(e){return false;}}return true;}
 function kakaoShare(){if(!ensureKakao()){copyLink();return;}try{Kakao.Share.sendDefault({objectType:'feed',content:{title:'섹터 RRG',description:'S&P 500 섹터 상대강도 회전 그래프',imageUrl:'',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}},buttons:[{title:'차트 보기',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}}]});}catch(e){copyLink();}}
