@@ -711,6 +711,28 @@
         createLegend();
         updateChart();
         updateStats();
+    
+        // === postMessage auto-resize for iframe ===
+        (function() {
+            let lastHeight = 0;
+            function sendHeight() {
+                const height = document.documentElement.scrollHeight;
+                if (height !== lastHeight) {
+                    lastHeight = height;
+                    window.parent.postMessage({
+                        type: "iframe-resize",
+                        height: height
+                    }, "*");
+                }
+            }
+            if (typeof ResizeObserver !== "undefined") {
+                new ResizeObserver(sendHeight).observe(document.body);
+            }
+            window.addEventListener("load", function() { setTimeout(sendHeight, 300); });
+            window.addEventListener("resize", function() { setTimeout(sendHeight, 200); });
+            setTimeout(sendHeight, 500);
+            setInterval(sendHeight, 2000);
+        })();
     </script>
 </body>
 </html>
