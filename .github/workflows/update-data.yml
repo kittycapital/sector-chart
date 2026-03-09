@@ -23,6 +23,10 @@ jobs:
         run: |
           pip install yfinance
 
+      - name: 📡 Update history CSVs
+        run: |
+          python scripts/update_history.py
+
       - name: 📡 Fetch sector data
         run: |
           python scripts/fetch_data.py
