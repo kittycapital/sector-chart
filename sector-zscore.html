@@ -94,6 +94,28 @@
         @keyframes spin{to{transform:rotate(360deg)}}
         @media(max-width:768px){.container{padding:12px}.header{padding:20px 0 15px}.header h1{font-size:1.4rem}.chart-card{padding:15px 12px}.chart-container-price{height:320px}.chart-container-zscore{height:170px}.stats-row{grid-template-columns:repeat(2,1fr);gap:8px}.stat-value{font-size:1.1rem}.share-section{gap:6px}.share-btn{padding:8px 12px;font-size:0.75rem}}
         @media(max-width:480px){.chart-container-price{height:280px}.chart-container-zscore{height:150px}.stat-value{font-size:1rem}.share-section{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.share-btn{padding:8px 4px;font-size:0.65rem;justify-content:center}.share-btn svg{width:12px;height:12px}}
+
+        /* Ranking Panel */
+        .rank-panel{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:16px 20px;margin-bottom:20px}
+        .rank-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+        .rank-title{font-size:13px;font-weight:700;color:var(--text-primary)}
+        .rank-toggle{display:flex;gap:2px;background:rgba(255,255,255,0.04);border-radius:6px;padding:2px}
+        .rank-toggle-btn{padding:5px 12px;border-radius:5px;border:none;background:transparent;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;cursor:pointer;transition:all .2s}
+        .rank-toggle-btn:hover{color:var(--text-secondary)}
+        .rank-toggle-btn.active{background:rgba(255,255,255,0.1);color:var(--text-primary);font-weight:600}
+        .rank-list{display:flex;flex-direction:column;gap:6px}
+        .rank-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;transition:all .15s;border:1px solid transparent}
+        .rank-row:hover{background:rgba(255,255,255,0.04);border-color:var(--border-color)}
+        .rank-row.selected{background:rgba(255,255,255,0.06);border-color:var(--accent-cyan)}
+        .rank-num{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--text-muted);min-width:18px;text-align:right}
+        .rank-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .rank-name{font-size:12px;font-weight:600;min-width:50px}
+        .rank-bar-wrap{flex:1;height:16px;background:rgba(255,255,255,0.04);border-radius:3px;position:relative;overflow:hidden}
+        .rank-bar{height:100%;border-radius:3px;transition:width .3s;min-width:2px}
+        .rank-bar.pos{position:absolute;left:50%}.rank-bar.neg{position:absolute;right:50%}
+        .rank-z{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;min-width:52px;text-align:right}
+        .rank-mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.1)}
+        @media(max-width:480px){.rank-row{gap:6px;padding:5px 6px}.rank-name{font-size:11px;min-width:40px}.rank-z{font-size:11px;min-width:44px}}
     </style>
 </head>
 <body>
@@ -119,6 +141,18 @@
             <option value="XLRE">XLRE — 부동산</option>
             <option value="XLB">XLB — 소재</option>
         </select>
+    </div>
+
+    <!-- Ranking Panel -->
+    <div class="rank-panel" id="rankPanel" style="display:none">
+        <div class="rank-header">
+            <span class="rank-title">📊 섹터 Z-Score 랭킹</span>
+            <div class="rank-toggle">
+                <button class="rank-toggle-btn active" id="rankToggle6m" onclick="setRankPeriod('6m')">6개월</button>
+                <button class="rank-toggle-btn" id="rankToggle1y" onclick="setRankPeriod('1y')">1년</button>
+            </div>
+        </div>
+        <div class="rank-list" id="rankList"></div>
     </div>
 
     <!-- Stats -->
@@ -226,6 +260,7 @@ const SECTORS={
 let _spyData=[], _sectorData={}, _activeSector='XLK';
 let _priceChart=null, _z6mChart=null, _z1yChart=null;
 let _syncing=false, _origMin=0, _origMax=0;
+let _allZScores={}, _rankPeriod='6m';
 
 // ─── DATA ───
 async function loadCSV(filename){
@@ -434,6 +469,7 @@ function switchSector(sector){
     _activeSector=sector;
     document.getElementById('sectorDot').style.background=SECTORS[sector].color;
     buildCharts(sector);
+    buildRanking();
 }
 
 // ─── SHARE ───
@@ -451,6 +487,64 @@ function doShare(platform){
     }
 }
 
+// ─── RANKING ───
+function computeAllZScores(){
+    _allZScores={};
+    Object.keys(SECTORS).forEach(sym=>{
+        const sData=_sectorData[sym];
+        if(!sData||!sData.length)return;
+        const aligned=alignAndRatio(sData,_spyData);
+        const z6m=computeZScore(aligned,126);
+        const z1y=computeZScore(aligned,252);
+        _allZScores[sym]={
+            z6m:z6m.length?z6m[z6m.length-1].zScore:null,
+            z1y:z1y.length?z1y[z1y.length-1].zScore:null
+        };
+    });
+}
+
+function buildRanking(){
+    const list=document.getElementById('rankList');
+    const key=_rankPeriod==='6m'?'z6m':'z1y';
+
+    // Sort by Z-Score descending
+    const sorted=Object.keys(SECTORS).filter(s=>_allZScores[s]&&_allZScores[s][key]!==null).map(s=>({sym:s,...SECTORS[s],z:_allZScores[s][key]})).sort((a,b)=>b.z-a.z);
+
+    const maxAbs=Math.max(4,Math.max(...sorted.map(s=>Math.abs(s.z))));
+
+    let html='';
+    sorted.forEach((s,i)=>{
+        const isSelected=s.sym===_activeSector;
+        const barPct=Math.abs(s.z)/maxAbs*50;
+        const barColor=s.z>=2?'rgba(255,71,87,0.7)':s.z<=-2?'rgba(0,212,170,0.7)':s.color;
+        const zColor=s.z>=2?'var(--accent-red)':s.z<=-2?'var(--accent-cyan)':'var(--text-primary)';
+        const barClass=s.z>=0?'pos':'neg';
+        const barStyle=s.z>=0?'left:50%;width:'+barPct+'%':'right:50%;width:'+barPct+'%';
+
+        html+='<div class="rank-row'+(isSelected?' selected':'')+'" onclick="rankClick(\''+s.sym+'\')">';
+        html+='<span class="rank-num">'+(i+1)+'</span>';
+        html+='<span class="rank-dot" style="background:'+s.color+'"></span>';
+        html+='<span class="rank-name" style="color:'+s.color+'">'+s.sym+'</span>';
+        html+='<div class="rank-bar-wrap"><div class="rank-mid"></div><div class="rank-bar '+barClass+'" style="'+barStyle+';background:'+barColor+'"></div></div>';
+        html+='<span class="rank-z" style="color:'+zColor+'">'+(s.z>=0?'+':'')+s.z.toFixed(2)+'</span>';
+        html+='</div>';
+    });
+    list.innerHTML=html;
+}
+
+function setRankPeriod(period){
+    _rankPeriod=period;
+    document.getElementById('rankToggle6m').className='rank-toggle-btn'+(period==='6m'?' active':'');
+    document.getElementById('rankToggle1y').className='rank-toggle-btn'+(period==='1y'?' active':'');
+    buildRanking();
+}
+
+function rankClick(sym){
+    document.getElementById('sectorSelect').value=sym;
+    switchSector(sym);
+    buildRanking();
+}
+
 // ─── INIT ───
 async function init(){
     try{
@@ -461,6 +555,9 @@ async function init(){
         if(!_spyData.length){document.getElementById('loading').innerHTML='⚠️ SPY 데이터를 불러올 수 없습니다';return;}
         document.getElementById('loadingWrap').style.display='none';
         document.getElementById('chartsWrap').style.display='block';
+        computeAllZScores();
+        document.getElementById('rankPanel').style.display='block';
+        buildRanking();
         buildCharts('XLK');
     }catch(e){
         document.getElementById('loading').innerHTML='⚠️ 데이터 로딩 실패: '+e.message;
