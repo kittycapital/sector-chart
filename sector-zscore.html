@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>섹터 ETF SPY 대비 Z-Score | HerdVibe</title>
+    <meta property="og:title" content="섹터 ETF SPY 대비 Z-Score">
+    <meta property="og:description" content="S&P 500 섹터 ETF의 SPY 대비 상대 강도를 6개월·1년 Z-Score로 분석">
+    <meta property="og:url" content="https://herdvibe.com/127">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="HerdVibe">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        ::-webkit-scrollbar{display:none}*{-ms-overflow-style:none;scrollbar-width:none}
+        :root{
+            --bg-primary:#0a0a0a;--bg-secondary:#111111;--bg-tertiary:#1a1a1a;
+            --text-primary:#ffffff;--text-secondary:#888888;--text-muted:#555555;
+            --accent-cyan:#00d4aa;--accent-red:#ff4757;--accent-yellow:#ffd43b;--accent-blue:#4dabf7;
+            --border-color:#2a2a2a;
+        }
+        html,body{overflow-x:hidden}
+        body{font-family:'Noto Sans KR',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;overflow-x:hidden}
+        .container{max-width:1400px;margin:0 auto;padding:20px}
+        .header{text-align:center;padding:30px 0 20px;border-bottom:1px solid var(--border-color);margin-bottom:20px}
+        .header h1{font-size:1.8rem;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px}
+        .header p{color:var(--text-secondary);font-size:0.85rem}
+
+        /* Sector Dropdown */
+        .selector-wrap{display:flex;justify-content:center;margin-bottom:20px;gap:8px;align-items:center}
+        .selector-label{font-size:13px;color:var(--text-secondary);font-weight:500}
+        .sector-select{
+            padding:10px 36px 10px 14px;border-radius:8px;border:1px solid var(--border-color);
+            background:var(--bg-secondary);color:var(--text-primary);font-family:'JetBrains Mono',monospace;
+            font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;
+            -webkit-appearance:none;-moz-appearance:none;appearance:none;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat:no-repeat;background-position:right 12px center;
+        }
+        .sector-select:hover{border-color:var(--accent-cyan)}
+        .sector-select:focus{outline:none;border-color:var(--accent-cyan);box-shadow:0 0 0 2px rgba(0,212,170,0.15)}
+        .sector-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0}
+
+        /* Stats */
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+        .stat-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:16px;text-align:center}
+        .stat-label{font-size:0.72rem;color:var(--text-muted);margin-bottom:4px}
+        .stat-value{font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700}
+        .stat-sub{font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--text-secondary);margin-top:2px}
+        .stat-value.positive{color:var(--accent-cyan)}.stat-value.negative{color:var(--accent-red)}.stat-value.neutral{color:var(--text-secondary)}
+
+        /* Chart Card */
+        .chart-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:24px;margin-bottom:20px;position:relative}
+        .chart-card.no-bottom{padding-bottom:8px;margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none}
+        .chart-card.no-top{padding-top:0;border-top-left-radius:0;border-top-right-radius:0;border-top:none}
+        .chart-card.middle{padding-top:0;padding-bottom:8px;margin-bottom:0;border-radius:0;border-top:none;border-bottom:none}
+        .chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:12px}
+        .chart-title-group h2{font-size:1.15rem;font-weight:700;margin-bottom:2px}
+        .chart-title-group .subtitle{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-muted)}
+        .legend-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+        .legend-item{display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--text-secondary);white-space:nowrap}
+        .legend-line{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+        .legend-bar{width:12px;height:12px;border-radius:2px;flex-shrink:0;opacity:0.8}
+        .chart-container-price{position:relative;width:100%;height:380px}
+        .chart-container-zscore{position:relative;width:100%;height:200px}
+
+        .zoom-reset-btn{z-index:10;padding:5px 12px;background:rgba(255,255,255,0.08);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;display:none;flex-shrink:0;align-self:center}
+        .zoom-reset-btn:hover{background:rgba(255,255,255,0.15);color:#fff;border-color:var(--accent-cyan)}
+        .zoom-hint{text-align:center;font-size:10px;color:var(--text-muted);margin-top:6px;font-family:'JetBrains Mono',monospace}
+
+        /* Share */
+        .share-section{display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+        .share-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;color:var(--text-secondary);font-size:0.78rem;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .2s;text-decoration:none}
+        .share-btn:hover{background:var(--bg-tertiary);border-color:#3a3a3a;color:var(--text-primary)}
+        .share-btn svg{width:14px;height:14px;flex-shrink:0}
+        .share-btn.twitter:hover{color:#fff;border-color:#555}
+        .share-btn.telegram{color:#29b6f6;border-color:rgba(41,182,246,0.2)}.share-btn.telegram:hover{background:rgba(41,182,246,0.08);border-color:rgba(41,182,246,0.4)}
+        .share-btn.kakao{color:#fee500;border-color:rgba(254,229,0,0.2)}.share-btn.kakao:hover{background:rgba(254,229,0,0.08);border-color:rgba(254,229,0,0.4)}
+        .share-btn.instagram{color:#e1306c;border-color:rgba(225,48,108,0.2)}.share-btn.instagram:hover{background:rgba(225,48,108,0.08);border-color:rgba(225,48,108,0.4)}
+        .share-btn.copy:hover{color:var(--accent-cyan);border-color:rgba(0,212,170,0.3)}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-color);padding:12px 24px;border-radius:10px;font-size:0.8rem;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .footer{text-align:center;padding:20px;color:var(--text-muted);font-size:0.75rem}
+        .loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;height:500px;gap:12px;color:var(--text-muted);font-size:0.85rem}
+        .spinner{width:36px;height:36px;border:3px solid var(--border-color);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:768px){.container{padding:12px}.header{padding:20px 0 15px}.header h1{font-size:1.4rem}.chart-card{padding:15px 12px}.chart-container-price{height:320px}.chart-container-zscore{height:170px}.stats-row{grid-template-columns:repeat(2,1fr);gap:8px}.stat-value{font-size:1.1rem}.share-section{gap:6px}.share-btn{padding:8px 12px;font-size:0.75rem}}
+        @media(max-width:480px){.chart-container-price{height:280px}.chart-container-zscore{height:150px}.stat-value{font-size:1rem}.share-section{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.share-btn{padding:8px 4px;font-size:0.65rem;justify-content:center}.share-btn svg{width:12px;height:12px}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1>섹터 ETF SPY 대비 Z-Score</h1>
+        <p>S&P 500 섹터 ETF의 SPY 대비 상대 강도를 6개월 · 1년 Z-Score로 분석</p>
+    </header>
+
+    <!-- Sector Dropdown -->
+    <div class="selector-wrap">
+        <span class="sector-dot" id="sectorDot" style="background:#3b82f6"></span>
+        <select class="sector-select" id="sectorSelect" onchange="switchSector(this.value)">
+            <option value="XLK">XLK — 기술</option>
+            <option value="XLF">XLF — 금융</option>
+            <option value="XLV">XLV — 헬스케어</option>
+            <option value="XLY">XLY — 임의소비재</option>
+            <option value="XLC">XLC — 커뮤니케이션</option>
+            <option value="XLI">XLI — 산업재</option>
+            <option value="XLP">XLP — 필수소비재</option>
+            <option value="XLE">XLE — 에너지</option>
+            <option value="XLU">XLU — 유틸리티</option>
+            <option value="XLRE">XLRE — 부동산</option>
+            <option value="XLB">XLB — 소재</option>
+        </select>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-label" id="labelPrice">XLK 현재가</div>
+            <div class="stat-value" id="statPrice" style="color:#3b82f6">--</div>
+            <div class="stat-sub" id="statDate">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label" id="labelRatio">XLK/SPY 비율</div>
+            <div class="stat-value" id="statRatio">--</div>
+            <div class="stat-sub" id="statRatioSub">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">6개월 Z-Score</div>
+            <div class="stat-value" id="statZ6m">--</div>
+            <div class="stat-sub" id="statZ6mLabel">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">1년 Z-Score</div>
+            <div class="stat-value" id="statZ1y">--</div>
+            <div class="stat-sub" id="statZ1yLabel">--</div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingWrap">
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+            데이터 로딩 중...
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div id="chartsWrap" style="display:none">
+        <div class="chart-card no-bottom">
+            <div class="chart-header">
+                <div class="chart-title-group">
+                    <h2 id="priceChartTitle">기술 (XLK) 가격</h2>
+                    <div class="subtitle">세미로그 스케일 · 일별 데이터</div>
+                </div>
+                <button class="zoom-reset-btn" id="zoomResetBtn" onclick="resetZoom()">↺ Reset Zoom</button>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-line" id="priceLegendLine" style="background:#3b82f6"></span><span id="priceLegendLabel">XLK</span></div>
+                </div>
+            </div>
+            <div class="chart-container-price"><canvas id="priceChart"></canvas></div>
+        </div>
+
+        <div class="chart-card middle">
+            <div class="chart-header" style="margin-bottom:8px">
+                <div class="chart-title-group">
+                    <div class="subtitle" id="z6mSubtitle">6개월 Z-Score · SPY 대비 XLK 상대 강도</div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-bar" style="background:var(--accent-blue)"></span>6개월 Z</div>
+                    <div class="legend-item"><span class="legend-bar" style="background:rgba(255,71,87,0.25);border:1px solid rgba(255,71,87,0.4)"></span>상대 강세</div>
+                    <div class="legend-item"><span class="legend-bar" style="background:rgba(0,212,170,0.25);border:1px solid rgba(0,212,170,0.4)"></span>상대 약세</div>
+                </div>
+            </div>
+            <div class="chart-container-zscore"><canvas id="z6mChart"></canvas></div>
+        </div>
+
+        <div class="chart-card no-top">
+            <div class="chart-header" style="margin-bottom:8px">
+                <div class="chart-title-group">
+                    <div class="subtitle" id="z1ySubtitle">1년 Z-Score · SPY 대비 XLK 상대 강도</div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-bar" style="background:var(--accent-yellow)"></span>1년 Z</div>
+                    <div class="legend-item"><span class="legend-bar" style="background:rgba(255,71,87,0.25);border:1px solid rgba(255,71,87,0.4)"></span>상대 강세</div>
+                    <div class="legend-item"><span class="legend-bar" style="background:rgba(0,212,170,0.25);border:1px solid rgba(0,212,170,0.4)"></span>상대 약세</div>
+                </div>
+            </div>
+            <div class="chart-container-zscore"><canvas id="z1yChart"></canvas></div>
+            <div class="zoom-hint">마우스 휠로 줌 · 드래그로 이동 · 모바일: 핀치 줌</div>
+        </div>
+    </div>
+
+    <!-- Share -->
+    <div class="share-section">
+        <button class="share-btn twitter" onclick="doShare('twitter')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
+        <button class="share-btn telegram" onclick="doShare('telegram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>텔레그램</button>
+        <button class="share-btn kakao" onclick="doShare('kakao')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.724 1.8 5.116 4.508 6.482-.144.525-.925 3.388-.958 3.603 0 0-.02.157.083.217.103.06.224.013.224.013.296-.041 3.434-2.263 3.973-2.652.703.098 1.428.15 2.17.15 5.523 0 10-3.463 10-7.813C22 6.463 17.523 3 12 3z"/></svg>카카오톡</button>
+        <button class="share-btn instagram" onclick="doShare('instagram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>인스타그램</button>
+        <button class="share-btn copy" onclick="doShare('copy')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>링크복사</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <footer class="footer">데이터 출처: Yahoo Finance | 매일 자동 업데이트 · <a href="https://herdvibe.com" style="color:var(--accent-cyan);text-decoration:none">herdvibe.com</a></footer>
+</div>
+
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
+<script>try{Kakao.init('a43ed7b39fac35458f4f9df925a279b5');}catch(e){}</script>
+<script>
+const SHARE_URL='https://herdvibe.com/127';
+const DATA_BASE='data/history/';
+const SECTORS={
+    XLK:{name:'기술',color:'#3b82f6'},XLF:{name:'금융',color:'#22c55e'},XLV:{name:'헬스케어',color:'#ef4444'},
+    XLY:{name:'임의소비재',color:'#f59e0b'},XLC:{name:'커뮤니케이션',color:'#8b5cf6'},XLI:{name:'산업재',color:'#06b6d4'},
+    XLP:{name:'필수소비재',color:'#ec4899'},XLE:{name:'에너지',color:'#84cc16'},XLU:{name:'유틸리티',color:'#f97316'},
+    XLRE:{name:'부동산',color:'#14b8a6'},XLB:{name:'소재',color:'#a855f7'}
+};
+
+let _spyData=[], _sectorData={}, _activeSector='XLK';
+let _priceChart=null, _z6mChart=null, _z1yChart=null;
+let _syncing=false, _origMin=0, _origMax=0;
+
+// ─── DATA ───
+async function loadCSV(filename){
+    const resp=await fetch(DATA_BASE+filename);
+    const text=await resp.text();
+    const lines=text.trim().replace(/\r/g,'').split('\n');
+    const data=[];
+    for(let i=1;i<lines.length;i++){
+        const parts=lines[i].split(',');
+        const close=parseFloat(parts[1]);
+        if(!isNaN(close)&&parts[0]){
+            const date=new Date(parts[0]);
+            if(!isNaN(date.getTime()))data.push({date,price:close});
+        }
+    }
+    data.sort((a,b)=>a.date-b.date);
+    return data;
+}
+
+function alignAndRatio(sectorData, spyData){
+    const spyMap={};
+    spyData.forEach(d=>{spyMap[d.date.toISOString().slice(0,10)]=d.price;});
+    const result=[];
+    sectorData.forEach(d=>{
+        const key=d.date.toISOString().slice(0,10);
+        if(spyMap[key]&&spyMap[key]>0){
+            result.push({date:d.date,sectorPrice:d.price,spyPrice:spyMap[key],ratio:d.price/spyMap[key]});
+        }
+    });
+    return result;
+}
+
+function computeZScore(ratioData, windowDays){
+    const results=[];
+    for(let i=windowDays;i<ratioData.length;i++){
+        const slice=ratioData.slice(i-windowDays,i);
+        const vals=slice.map(d=>d.ratio);
+        const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+        const std=Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length);
+        if(std>0) results.push({date:ratioData[i].date,zScore:(ratioData[i].ratio-mean)/std});
+    }
+    return results;
+}
+
+function toWeekly(data){
+    if(!data.length)return[];
+    const weekly=[];let wk=null,buf=[];
+    data.forEach(d=>{
+        const k=new Date(d.date);k.setDate(k.getDate()-k.getDay());
+        const wkStr=k.toISOString().slice(0,10);
+        if(wk!==wkStr){if(buf.length)weekly.push(buf[buf.length-1]);wk=wkStr;buf=[d];}else buf.push(d);
+    });
+    if(buf.length)weekly.push(buf[buf.length-1]);
+    return weekly;
+}
+
+// ─── FORMAT ───
+function formatPrice(v){
+    if(v>=1000)return'$'+v.toLocaleString('en-US',{maximumFractionDigits:0});
+    if(v>=1)return'$'+v.toFixed(2);
+    return'$'+v.toFixed(4);
+}
+
+function zLabel(z){
+    if(z>=2)return{text:'상대 강세 ↑',color:'var(--accent-red)'};
+    if(z<=-2)return{text:'상대 약세 ↓',color:'var(--accent-cyan)'};
+    return{text:'중립',color:'var(--text-secondary)'};
+}
+
+// ─── WATERMARK ───
+const watermarkPlugin={
+    id:'watermark',afterDraw(chart){
+        const ctx=chart.ctx,a=chart.chartArea,w=a.right-a.left;
+        const fs=Math.max(14,Math.min(38,w*0.07));
+        ctx.save();ctx.globalAlpha=0.07;ctx.font=`700 ${fs}px JetBrains Mono`;ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('Herdvibe.com',(a.left+a.right)/2,(a.top+a.bottom)/2);ctx.restore();
+    }
+};
+
+// ─── CHARTS ───
+function destroyCharts(){[_priceChart,_z6mChart,_z1yChart].forEach(c=>{if(c)c.destroy();});_priceChart=_z6mChart=_z1yChart=null;}
+
+function buildCharts(sector){
+    destroyCharts();
+    const cfg=SECTORS[sector];
+    const sectorRaw=_sectorData[sector];
+    if(!sectorRaw||!sectorRaw.length)return;
+
+    const aligned=alignAndRatio(sectorRaw,_spyData);
+    const z6m=toWeekly(computeZScore(aligned,126));
+    const z1y=toWeekly(computeZScore(aligned,252));
+
+    // Stats
+    const last=sectorRaw[sectorRaw.length-1];
+    const lastAligned=aligned[aligned.length-1];
+    document.getElementById('statPrice').textContent=formatPrice(last.price);
+    document.getElementById('statPrice').style.color=cfg.color;
+    document.getElementById('statDate').textContent=last.date.toISOString().slice(0,10);
+    document.getElementById('labelPrice').textContent=sector+' 현재가';
+    document.getElementById('labelRatio').textContent=sector+'/SPY 비율';
+    document.getElementById('sectorDot').style.background=cfg.color;
+
+    if(lastAligned){
+        document.getElementById('statRatio').textContent=lastAligned.ratio.toFixed(4);
+        document.getElementById('statRatioSub').textContent='1 '+sector+' = '+lastAligned.ratio.toFixed(4)+' SPY';
+    }
+
+    function updateZStat(elId, labelId, zArr){
+        if(zArr.length){
+            const lz=zArr[zArr.length-1].zScore;
+            const el=document.getElementById(elId);
+            el.textContent=(lz>=0?'+':'')+lz.toFixed(2);
+            const lb=zLabel(lz);
+            el.className='stat-value '+(lz>=2?'negative':lz<=-2?'positive':'neutral');
+            document.getElementById(labelId).textContent=lb.text;
+            document.getElementById(labelId).style.color=lb.color;
+        }
+    }
+    updateZStat('statZ6m','statZ6mLabel',z6m);
+    updateZStat('statZ1y','statZ1yLabel',z1y);
+
+    document.getElementById('priceChartTitle').textContent=cfg.name+' ('+sector+') 가격';
+    document.getElementById('priceLegendLine').style.background=cfg.color;
+    document.getElementById('priceLegendLabel').textContent=sector;
+    document.getElementById('z6mSubtitle').textContent='6개월 Z-Score · SPY 대비 '+sector+' 상대 강도';
+    document.getElementById('z1ySubtitle').textContent='1년 Z-Score · SPY 대비 '+sector+' 상대 강도';
+
+    function zoomSync(sourceId){
+        return{zoom:{wheel:{enabled:true},pinch:{enabled:true},drag:{enabled:false},mode:'x',onZoom:({chart})=>syncCharts(chart,sourceId)},pan:{enabled:true,mode:'x',onPan:({chart})=>syncCharts(chart,sourceId)}};
+    }
+
+    // Price Chart
+    const priceData=sectorRaw.map(d=>({x:d.date.getTime(),y:d.price}));
+    _priceChart=new Chart(document.getElementById('priceChart'),{
+        type:'line',
+        data:{datasets:[{data:priceData,borderColor:cfg.color,borderWidth:2,pointRadius:0,tension:0.1,fill:false}]},
+        options:{
+            responsive:true,maintainAspectRatio:false,animation:false,
+            scales:{
+                x:{type:'time',offset:false,time:{unit:'month',displayFormats:{month:'yyyy.MM'}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#999',font:{family:'JetBrains Mono',size:10},maxTicksLimit:10},border:{color:'rgba(255,255,255,0.1)'}},
+                y:{type:'logarithmic',position:'right',grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#999',font:{family:'JetBrains Mono',size:10},callback:v=>formatPrice(v)},border:{color:'rgba(255,255,255,0.1)'}}
+            },
+            plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>sector+': '+formatPrice(ctx.parsed.y)}},zoom:zoomSync('price')}
+        },
+        plugins:[watermarkPlugin]
+    });
+
+    // Z-Score chart builder
+    function buildZChart(canvasId, zData, barColor, sourceId, titleAxis){
+        const bars=zData.map(d=>({x:d.date.getTime(),y:d.zScore}));
+        const posColor='rgba(255,71,87,0.6)',negColor='rgba(0,212,170,0.6)';
+        return new Chart(document.getElementById(canvasId),{
+            type:'bar',
+            data:{datasets:[{data:bars,backgroundColor:bars.map(b=>b.y>=2?posColor:b.y<=-2?negColor:barColor),borderWidth:0,barPercentage:1,categoryPercentage:1}]},
+            options:{
+                responsive:true,maintainAspectRatio:false,animation:false,
+                scales:{
+                    x:{type:'time',offset:false,time:{unit:'month',displayFormats:{month:'yyyy.MM'}},grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#999',font:{family:'JetBrains Mono',size:9},maxTicksLimit:10},border:{color:'rgba(255,255,255,0.1)'}},
+                    y:{position:'right',min:-4,max:4,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#999',font:{family:'JetBrains Mono',size:9},stepSize:1},border:{color:'rgba(255,255,255,0.1)'},title:{display:true,text:titleAxis,color:'#999',font:{family:'JetBrains Mono',size:10}}}
+                },
+                plugins:{
+                    legend:{display:false},
+                    tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>'Z-Score: '+(ctx.parsed.y>=0?'+':'')+ctx.parsed.y.toFixed(2)}},
+                    annotation:{annotations:{
+                        line2:{type:'line',yMin:2,yMax:2,borderColor:'rgba(255,71,87,0.5)',borderWidth:1,borderDash:[4,4],label:{display:true,content:'+2 강세',position:'start',color:'rgba(255,71,87,0.7)',font:{size:9,family:'JetBrains Mono'},backgroundColor:'transparent'}},
+                        lineN2:{type:'line',yMin:-2,yMax:-2,borderColor:'rgba(0,212,170,0.5)',borderWidth:1,borderDash:[4,4],label:{display:true,content:'-2 약세',position:'start',color:'rgba(0,212,170,0.7)',font:{size:9,family:'JetBrains Mono'},backgroundColor:'transparent'}},
+                        line0:{type:'line',yMin:0,yMax:0,borderColor:'rgba(255,255,255,0.15)',borderWidth:1}
+                    }},
+                    zoom:zoomSync(sourceId)
+                }
+            },
+            plugins:[watermarkPlugin]
+        });
+    }
+
+    _z6mChart=buildZChart('z6mChart',z6m,'rgba(77,171,247,0.5)','z6m','6개월 Z-Score');
+    _z1yChart=buildZChart('z1yChart',z1y,'rgba(255,212,59,0.5)','z1y','1년 Z-Score');
+
+    // Sync ranges
+    if(_priceChart&&z1y.length){
+        const minT=z1y[0].date.getTime(),maxT=priceData[priceData.length-1].x;
+        _origMin=minT;_origMax=maxT;
+        [_priceChart,_z6mChart,_z1yChart].forEach(c=>{if(c){c.options.scales.x.min=minT;c.options.scales.x.max=maxT;c.update('none');}});
+    }else if(_priceChart&&z6m.length){
+        const minT=z6m[0].date.getTime(),maxT=priceData[priceData.length-1].x;
+        _origMin=minT;_origMax=maxT;
+        [_priceChart,_z6mChart,_z1yChart].forEach(c=>{if(c){c.options.scales.x.min=minT;c.options.scales.x.max=maxT;c.update('none');}});
+    }
+}
+
+function syncCharts(source,sourceId){
+    if(_syncing)return;_syncing=true;
+    const xMin=source.scales.x.min,xMax=source.scales.x.max;
+    [_priceChart,_z6mChart,_z1yChart].forEach(c=>{if(c&&c!==source){c.options.scales.x.min=xMin;c.options.scales.x.max=xMax;c.update('none');}});
+    document.getElementById('zoomResetBtn').style.display='block';_syncing=false;
+}
+
+function resetZoom(){
+    if(!_origMin)return;
+    [_priceChart,_z6mChart,_z1yChart].forEach(c=>{if(c){c.options.scales.x.min=_origMin;c.options.scales.x.max=_origMax;c.update('none');}});
+    document.getElementById('zoomResetBtn').style.display='none';
+}
+
+// ─── SECTOR SWITCH ───
+function switchSector(sector){
+    _activeSector=sector;
+    document.getElementById('sectorDot').style.background=SECTORS[sector].color;
+    buildCharts(sector);
+}
+
+// ─── SHARE ───
+function openUrl(url){try{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){try{window.open(url,'_blank');}catch(e2){}}}
+function doCopy(text){try{window.parent.postMessage({type:'clipboard',text},'*');}catch(e){}try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(text);return;}}catch(e){}try{const ta=document.createElement('textarea');ta.value=text;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;left:0;top:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}catch(e){window.prompt('아래 링크를 복사하세요:',text);}}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function doShare(platform){
+    const t='섹터 ETF SPY 대비 Z-Score — HerdVibe';
+    switch(platform){
+        case'twitter':openUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(SHARE_URL)}`);break;
+        case'telegram':openUrl(`https://t.me/share/url?url=${encodeURIComponent(SHARE_URL)}&text=${encodeURIComponent(t)}`);break;
+        case'kakao':try{Kakao.Share.sendDefault({objectType:'feed',content:{title:'섹터 ETF SPY 대비 Z-Score',description:'S&P 500 섹터 ETF의 SPY 대비 상대 강도 Z-Score 분석',imageUrl:'',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}},buttons:[{title:'차트 보기',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}}]});}catch(e){openUrl(`https://story.kakao.com/share?url=${encodeURIComponent(SHARE_URL)}`);}break;
+        case'instagram':doCopy(SHARE_URL);showToast('링크가 복사되었습니다 — 인스타그램에 붙여넣기 하세요');break;
+        case'copy':doCopy(SHARE_URL);showToast('링크가 복사되었습니다');break;
+    }
+}
+
+// ─── INIT ───
+async function init(){
+    try{
+        const symbols=['SPY',...Object.keys(SECTORS)];
+        const results=await Promise.all(symbols.map(s=>loadCSV(s+'.csv')));
+        _spyData=results[0];
+        Object.keys(SECTORS).forEach((s,i)=>{_sectorData[s]=results[i+1];});
+        if(!_spyData.length){document.getElementById('loading').innerHTML='⚠️ SPY 데이터를 불러올 수 없습니다';return;}
+        document.getElementById('loadingWrap').style.display='none';
+        document.getElementById('chartsWrap').style.display='block';
+        buildCharts('XLK');
+    }catch(e){
+        document.getElementById('loading').innerHTML='⚠️ 데이터 로딩 실패: '+e.message;
+    }
+}
+document.addEventListener('DOMContentLoaded',init);
+
+// iframe resize
+(function(){
+    var lastH=0;var container=document.querySelector('.container');
+    setInterval(function(){
+        if(window.parent===window)return;
+        var h=container?container.offsetHeight+40:0;
+        if(h>0&&Math.abs(h-lastH)>5){lastH=h;window.parent.postMessage({type:'resize',height:h},'*');}
+    },500);
+})();
+</script>
+</body>
+</html>
