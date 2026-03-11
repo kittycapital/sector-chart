@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>섹터 모멘텀 로테이션 백테스트 | HerdVibe</title>
+    <meta property="og:title" content="섹터 모멘텀 로테이션 백테스트">
+    <meta property="og:description" content="12개월 모멘텀 상위 섹터 ETF를 매월 로테이션하는 퀀트 전략 백테스트">
+    <meta property="og:url" content="https://herdvibe.com/128">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="HerdVibe">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#555}
+        :root{
+            --bg:#0a0a0a;--bg2:#111111;--bg3:#1a1a1a;
+            --t1:#ffffff;--t2:#888888;--t3:#555555;
+            --cyan:#00d4aa;--red:#ff4757;--yellow:#ffd43b;--blue:#4dabf7;
+            --brd:#2a2a2a;
+        }
+        html,body{overflow-x:hidden}
+        body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--t1);line-height:1.6}
+        .mono{font-family:'JetBrains Mono',monospace}
+        .container{max-width:1400px;margin:0 auto;padding:20px}
+
+        /* Header */
+        .header{text-align:center;padding:30px 0 20px;border-bottom:1px solid var(--brd);margin-bottom:24px}
+        .header h1{font-size:1.8rem;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px}
+        .header p{color:var(--t2);font-size:0.85rem}
+        .tag{display:inline-block;padding:3px 10px;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.25);border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--cyan);margin-top:8px}
+
+        /* Controls */
+        .ctrl-panel{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .ctrl-title{font-size:13px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .ctrl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px}
+        .ctrl-group{display:flex;flex-direction:column;gap:4px}
+        .ctrl-label{font-size:10px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+        .ctrl-input{padding:9px 12px;border-radius:8px;border:1px solid var(--brd);background:var(--bg3);color:var(--t1);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;transition:border-color .2s;width:100%}
+        .ctrl-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,212,170,0.15)}
+        select.ctrl-input{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
+        .ctrl-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+        .strategy-desc{font-size:12px;color:var(--t2);max-width:750px;line-height:1.7}
+        .strategy-desc strong{color:var(--cyan)}
+        .run-btn{padding:10px 28px;background:var(--cyan);color:#000;border:none;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:0.3px}
+        .run-btn:hover{background:#00eabb;box-shadow:0 0 20px rgba(0,212,170,0.3)}
+        .run-btn:disabled{opacity:0.4;cursor:not-allowed}
+
+        /* VIX toggle */
+        .vix-row{display:flex;align-items:center;gap:16px;padding:12px 16px;background:rgba(255,212,59,0.04);border:1px solid rgba(255,212,59,0.15);border-radius:8px;margin-bottom:16px}
+        .vix-row label{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:6px;cursor:pointer}
+        .vix-row input[type=checkbox]{accent-color:var(--yellow);width:16px;height:16px;cursor:pointer}
+        .vix-thresh{width:70px}
+
+        /* Stats */
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+        .stat-card{background:var(--bg2);border:1px solid var(--brd);border-radius:10px;padding:14px 12px;text-align:center}
+        .stat-label{font-size:0.65rem;color:var(--t3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.3px}
+        .stat-value{font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:700}
+        .stat-sub{font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:var(--t2);margin-top:2px}
+        .pos{color:var(--cyan)}.neg{color:var(--red)}.neu{color:var(--t2)}
+
+        /* Chart */
+        .chart-card{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:24px;margin-bottom:20px;position:relative}
+        .chart-card.no-b{padding-bottom:8px;margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:none}
+        .chart-card.no-t{padding-top:10px;border-top-left-radius:0;border-top-right-radius:0;border-top:none}
+        .ch-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:12px}
+        .ch-title h2{font-size:1.1rem;font-weight:700;margin-bottom:2px}
+        .ch-title .sub{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--t3)}
+        .legend-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+        .legend-item{display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--t2);white-space:nowrap}
+        .legend-line{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+        .ch-wrap{position:relative;width:100%;height:380px}
+        .ch-wrap-sm{position:relative;width:100%;height:200px}
+        .ch-wrap-md{position:relative;width:100%;height:260px}
+        .zoom-btn{padding:5px 12px;background:rgba(255,255,255,0.08);border:1px solid var(--brd);border-radius:6px;color:var(--t2);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;display:none;flex-shrink:0}
+        .zoom-btn:hover{background:rgba(255,255,255,0.15);color:#fff;border-color:var(--cyan)}
+        .zoom-hint{text-align:center;font-size:10px;color:var(--t3);margin-top:6px;font-family:'JetBrains Mono',monospace}
+
+        /* Tables */
+        .tbl-section{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .tbl-section h3{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .tbl-wrap{overflow-x:auto;max-height:500px;overflow-y:auto}
+        table.dt{width:100%;border-collapse:collapse;font-size:12px}
+        table.dt th{position:sticky;top:0;background:var(--bg3);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.5px;padding:10px 10px;text-align:left;border-bottom:1px solid var(--brd)}
+        table.dt td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.03);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t2)}
+        table.dt tr:hover td{background:rgba(255,255,255,0.02)}
+        .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+        .badge-buy{background:rgba(0,212,170,0.12);color:var(--cyan)}
+        .badge-sell{background:rgba(255,71,87,0.12);color:var(--red)}
+        .badge-hold{background:rgba(255,255,255,0.06);color:var(--t2)}
+
+        /* Share */
+        .share-section{display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+        .share-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--bg2);border:1px solid var(--brd);border-radius:10px;color:var(--t2);font-size:0.78rem;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .2s;text-decoration:none}
+        .share-btn:hover{background:var(--bg3);border-color:#3a3a3a;color:var(--t1)}
+        .share-btn svg{width:14px;height:14px;flex-shrink:0}
+        .share-btn.twitter:hover{color:#fff;border-color:#555}
+        .share-btn.telegram{color:#29b6f6;border-color:rgba(41,182,246,0.2)}.share-btn.telegram:hover{background:rgba(41,182,246,0.08);border-color:rgba(41,182,246,0.4)}
+        .share-btn.kakao{color:#fee500;border-color:rgba(254,229,0,0.2)}.share-btn.kakao:hover{background:rgba(254,229,0,0.08);border-color:rgba(254,229,0,0.4)}
+        .share-btn.instagram{color:#e1306c;border-color:rgba(225,48,108,0.2)}.share-btn.instagram:hover{background:rgba(225,48,108,0.08);border-color:rgba(225,48,108,0.4)}
+        .share-btn.copy:hover{color:var(--cyan);border-color:rgba(0,212,170,0.3)}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg3);color:var(--t1);border:1px solid var(--brd);padding:12px 24px;border-radius:10px;font-size:0.8rem;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+        .footer{text-align:center;padding:20px;color:var(--t3);font-size:0.75rem}
+        .loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;gap:12px;color:var(--t3);font-size:0.85rem}
+        .spinner{width:36px;height:36px;border:3px solid var(--brd);border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .hidden{display:none !important}
+
+        @media(max-width:768px){.container{padding:12px}.header{padding:20px 0 15px}.header h1{font-size:1.4rem}.chart-card{padding:15px 12px}.ch-wrap{height:300px}.ch-wrap-sm{height:160px}.ch-wrap-md{height:200px}.stats-row{grid-template-columns:repeat(2,1fr);gap:8px}.ctrl-grid{grid-template-columns:repeat(2,1fr)}.share-section{gap:6px}.share-btn{padding:8px 12px;font-size:0.75rem}}
+        @media(max-width:480px){.ch-wrap{height:260px}.ctrl-grid{grid-template-columns:1fr 1fr}.share-section{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.share-btn{padding:8px 4px;font-size:0.65rem;justify-content:center}.share-btn svg{width:12px;height:12px}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1>섹터 모멘텀 로테이션 백테스트</h1>
+        <p>가장 강한 모멘텀을 보이는 섹터 ETF를 매월 로테이션하는 퀀트 전략</p>
+        <div class="tag">Momentum Rotation · Faber/Quantpedia Methodology</div>
+    </header>
+
+    <!-- Controls -->
+    <div class="ctrl-panel">
+        <div class="ctrl-title">⚙️ 백테스트 설정</div>
+        <div class="ctrl-grid">
+            <div class="ctrl-group">
+                <label class="ctrl-label">초기 자본 ($)</label>
+                <input type="number" class="ctrl-input" id="inCapital" value="100000" min="1000" step="1000">
+            </div>
+            <div class="ctrl-group">
+                <label class="ctrl-label">모멘텀 기간</label>
+                <select class="ctrl-input" id="inLookback">
+                    <option value="63">3개월 (63일)</option>
+                    <option value="126">6개월 (126일)</option>
+                    <option value="252" selected>12개월 (252일)</option>
+                </select>
+            </div>
+            <div class="ctrl-group">
+                <label class="ctrl-label">매수 섹터 수 (Top N)</label>
+                <select class="ctrl-input" id="inTopN">
+                    <option value="1">1개</option>
+                    <option value="2">2개</option>
+                    <option value="3" selected>3개</option>
+                    <option value="4">4개</option>
+                    <option value="5">5개</option>
+                </select>
+            </div>
+            <div class="ctrl-group">
+                <label class="ctrl-label">리밸런싱 주기</label>
+                <select class="ctrl-input" id="inRebal">
+                    <option value="monthly" selected>매월</option>
+                    <option value="weekly">매주</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- VIX Filter -->
+        <div class="vix-row">
+            <label><input type="checkbox" id="inVixOn"> <strong style="color:var(--yellow)">VIX 필터</strong> 활성화</label>
+            <label class="ctrl-label" style="margin:0">VIX 임계값 ≥</label>
+            <input type="number" class="ctrl-input vix-thresh" id="inVixThresh" value="30" min="15" max="80" step="1">
+            <span style="font-size:11px;color:var(--t3)">→ VIX가 임계값 이상이면 전액 현금 보유</span>
+        </div>
+
+        <div class="ctrl-footer">
+            <div class="strategy-desc">
+                매월 리밸런싱일에 모든 섹터의 <strong>N개월 수익률(ROC)</strong>을 계산하여 순위를 매기고,
+                상위 <strong>Top N개</strong> 섹터를 <strong>동일비중</strong>으로 매수합니다.
+                다음 달 순위가 바뀌면 교체하고, 유지되면 보유합니다.
+            </div>
+            <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ 백테스트 실행</button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadWrap" class="hidden">
+        <div class="loading-overlay"><div class="spinner"></div><span id="loadText">데이터 로딩 중...</span></div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="hidden">
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card"><div class="stat-label">전략 최종 자산</div><div class="stat-value" id="sFinal">--</div><div class="stat-sub" id="sFinalSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">SPY B&H 최종</div><div class="stat-value neu" id="sSpy">--</div><div class="stat-sub" id="sSpySub">--</div></div>
+            <div class="stat-card"><div class="stat-label">전략 CAGR</div><div class="stat-value" id="sCagr">--</div><div class="stat-sub" id="sCagrSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">최대 낙폭 (MDD)</div><div class="stat-value" id="sMdd">--</div><div class="stat-sub" id="sMddSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">샤프 비율</div><div class="stat-value" id="sSharpe">--</div><div class="stat-sub" id="sSharpeSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">월간 승률</div><div class="stat-value" id="sWinM">--</div><div class="stat-sub" id="sWinMSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">총 리밸런싱</div><div class="stat-value neu" id="sRebal">--</div><div class="stat-sub" id="sRebalSub">--</div></div>
+            <div class="stat-card"><div class="stat-label">현금 보유 비율</div><div class="stat-value neu" id="sCash">--</div><div class="stat-sub" id="sCashSub">--</div></div>
+        </div>
+
+        <!-- Equity Chart -->
+        <div class="chart-card no-b">
+            <div class="ch-header">
+                <div class="ch-title"><h2>📈 수익률 곡선</h2><div class="sub">전략 vs SPY Buy & Hold · 로그 스케일</div></div>
+                <button class="zoom-btn" id="zoomReset1" onclick="resetZ('equity')">↺ Reset Zoom</button>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-line" style="background:var(--cyan)"></span>모멘텀 전략</div>
+                    <div class="legend-item"><span class="legend-line" style="background:rgba(255,255,255,0.25)"></span>SPY B&H</div>
+                </div>
+            </div>
+            <div class="ch-wrap"><canvas id="cEquity"></canvas></div>
+        </div>
+
+        <!-- Drawdown -->
+        <div class="chart-card no-t">
+            <div class="ch-header">
+                <div class="ch-title"><div class="sub">Drawdown · 고점 대비 하락률</div></div>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-line" style="background:var(--red)"></span>전략</div>
+                    <div class="legend-item"><span class="legend-line" style="background:rgba(255,255,255,0.2)"></span>SPY</div>
+                </div>
+            </div>
+            <div class="ch-wrap-sm"><canvas id="cDD"></canvas></div>
+            <div class="zoom-hint">마우스 휠로 줌 · 드래그로 이동</div>
+        </div>
+
+        <!-- Holding Heatmap / Monthly Returns -->
+        <div class="chart-card">
+            <div class="ch-header">
+                <div class="ch-title"><h2>🏷️ 월별 보유 섹터</h2><div class="sub">각 리밸런싱 시점의 보유 종목 및 월간 수익률</div></div>
+            </div>
+            <div class="tbl-wrap" style="max-height:400px">
+                <table class="dt" id="holdingTable">
+                    <thead><tr><th>날짜</th><th>보유 섹터</th><th>월간 수익률</th><th>누적 자산</th><th>VIX</th><th>상태</th></tr></thead>
+                    <tbody id="holdingBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sector frequency -->
+        <div class="chart-card">
+            <div class="ch-header">
+                <div class="ch-title"><h2>📊 섹터별 선정 빈도 & 성과</h2><div class="sub">어떤 섹터가 얼마나 자주 Top N에 포함되었는가</div></div>
+            </div>
+            <div class="ch-wrap-md"><canvas id="cFreq"></canvas></div>
+        </div>
+
+        <!-- Sector Summary Table -->
+        <div class="tbl-section">
+            <h3>📋 섹터별 상세 성과</h3>
+            <div class="tbl-wrap">
+                <table class="dt">
+                    <thead><tr><th>섹터</th><th>선정 횟수</th><th>선정 비율</th><th>보유 시 평균 월수익률</th><th>보유 시 누적 기여</th></tr></thead>
+                    <tbody id="sectorBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Annual Returns -->
+        <div class="tbl-section">
+            <h3>📅 연도별 수익률</h3>
+            <div class="tbl-wrap">
+                <table class="dt">
+                    <thead><tr><th>연도</th><th>전략</th><th>SPY B&H</th><th>초과 수익</th></tr></thead>
+                    <tbody id="annualBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share -->
+    <div class="share-section">
+        <button class="share-btn twitter" onclick="doShare('twitter')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
+        <button class="share-btn telegram" onclick="doShare('telegram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>텔레그램</button>
+        <button class="share-btn kakao" onclick="doShare('kakao')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.724 1.8 5.116 4.508 6.482-.144.525-.925 3.388-.958 3.603 0 0-.02.157.083.217.103.06.224.013.224.013.296-.041 3.434-2.263 3.973-2.652.703.098 1.428.15 2.17.15 5.523 0 10-3.463 10-7.813C22 6.463 17.523 3 12 3z"/></svg>카카오톡</button>
+        <button class="share-btn instagram" onclick="doShare('instagram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>인스타그램</button>
+        <button class="share-btn copy" onclick="doShare('copy')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>링크복사</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <footer class="footer">
+        데이터 출처: Yahoo Finance | 매일 자동 업데이트 · <a href="https://herdvibe.com" style="color:var(--cyan);text-decoration:none">herdvibe.com</a>
+        <br><span style="font-size:0.65rem;color:#444">※ 본 백테스트는 과거 데이터 기반이며, 미래 수익을 보장하지 않습니다. 수수료·슬리피지 미반영.</span>
+    </footer>
+</div>
+
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
+<script>try{Kakao.init('a43ed7b39fac35458f4f9df925a279b5');}catch(e){}</script>
+
+<script>
+const SHARE_URL = 'https://herdvibe.com/128';
+const DATA_BASE = 'data/history/';
+
+const SECTORS = {
+    XLK:{name:'기술',color:'#3b82f6'},
+    XLF:{name:'금융',color:'#22c55e'},
+    XLV:{name:'헬스케어',color:'#ef4444'},
+    XLY:{name:'임의소비재',color:'#f59e0b'},
+    XLC:{name:'커뮤니케이션',color:'#8b5cf6'},
+    XLI:{name:'산업재',color:'#06b6d4'},
+    XLP:{name:'필수소비재',color:'#ec4899'},
+    XLE:{name:'에너지',color:'#84cc16'},
+    XLU:{name:'유틸리티',color:'#f97316'},
+    XLRE:{name:'부동산',color:'#14b8a6'},
+    XLB:{name:'소재',color:'#a855f7'}
+};
+const SECTOR_KEYS = Object.keys(SECTORS);
+
+let _raw = {}; // sym -> [{date, dateStr, price}]
+let _loaded = false;
+let _charts = {};
+
+// ─── DATA ───
+async function loadCSV(sym) {
+    const resp = await fetch(DATA_BASE + sym + '.csv');
+    const text = await resp.text();
+    const lines = text.trim().replace(/\r/g, '').split('\n');
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const p = lines[i].split(',');
+        const close = parseFloat(p[1]);
+        if (!isNaN(close) && p[0]) {
+            const d = new Date(p[0]);
+            if (!isNaN(d.getTime())) data.push({ date: d, dateStr: p[0].trim(), price: close });
+        }
+    }
+    data.sort((a, b) => a.date - b.date);
+    return data;
+}
+
+async function loadAll() {
+    if (_loaded) return;
+    const syms = ['SPY', '^VIX', ...SECTOR_KEYS];
+    const results = await Promise.all(syms.map(s => loadCSV(s)));
+    _raw['SPY'] = results[0];
+    _raw['VIX'] = results[1];
+    SECTOR_KEYS.forEach((s, i) => { _raw[s] = results[i + 2]; });
+    _loaded = true;
+}
+
+// ─── BACKTEST ───
+function runBacktest() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true; btn.textContent = '⏳ 실행 중...';
+    document.getElementById('loadWrap').classList.remove('hidden');
+
+    loadAll().then(() => {
+        document.getElementById('loadWrap').classList.add('hidden');
+        try {
+            const cfg = {
+                capital: parseFloat(document.getElementById('inCapital').value) || 100000,
+                lookback: parseInt(document.getElementById('inLookback').value),
+                topN: parseInt(document.getElementById('inTopN').value),
+                rebal: document.getElementById('inRebal').value,
+                vixOn: document.getElementById('inVixOn').checked,
+                vixThresh: parseFloat(document.getElementById('inVixThresh').value) || 30
+            };
+            const res = execute(cfg);
+            render(res, cfg);
+        } catch (e) { alert('오류: ' + e.message); console.error(e); }
+        btn.disabled = false; btn.textContent = '▶ 백테스트 실행';
+    }).catch(e => {
+        document.getElementById('loadWrap').classList.add('hidden');
+        alert('데이터 로딩 실패: ' + e.message);
+        btn.disabled = false; btn.textContent = '▶ 백테스트 실행';
+    });
+}
+
+function execute(cfg) {
+    // Build price maps: dateStr -> price
+    const priceMap = {};
+    ['SPY', ...SECTOR_KEYS].forEach(sym => {
+        priceMap[sym] = {};
+        _raw[sym].forEach(d => { priceMap[sym][d.dateStr] = d.price; });
+    });
+    const vixMap = {};
+    if (_raw['VIX']) _raw['VIX'].forEach(d => { vixMap[d.dateStr] = d.price; });
+
+    // Common dates where SPY + all sectors have prices
+    const spyDates = _raw['SPY'].map(d => d.dateStr);
+    const dateSet = new Set(spyDates);
+    SECTOR_KEYS.forEach(sym => {
+        const s = new Set(_raw[sym].map(d => d.dateStr));
+        [...dateSet].forEach(d => { if (!s.has(d)) dateSet.delete(d); });
+    });
+    const dates = [...dateSet].sort();
+
+    // Date index for lookback
+    const dateIdx = {}; dates.forEach((d, i) => { dateIdx[d] = i; });
+
+    // Determine rebalance dates
+    function isRebalDate(idx) {
+        if (idx === 0) return false; // skip first
+        if (cfg.rebal === 'weekly') {
+            const d = new Date(dates[idx]);
+            return d.getDay() === 5; // Friday
+        } else {
+            return dates[idx].slice(0, 7) !== dates[idx - 1].slice(0, 7); // new month
+        }
+    }
+
+    // Simulation
+    let cash = cfg.capital;
+    const positions = {}; // sym -> { shares, entryPrice }
+    const equityCurve = [];
+    const spyCurve = [];
+    const monthlyLog = []; // each rebalance record
+    const spyStart = priceMap['SPY'][dates[0]];
+    let cashDays = 0;
+
+    // Start after lookback period
+    const startIdx = cfg.lookback;
+    if (startIdx >= dates.length) throw new Error('데이터가 모멘텀 기간보다 짧습니다');
+
+    for (let i = startIdx; i < dates.length; i++) {
+        const dt = dates[i];
+        const spyPrice = priceMap['SPY'][dt];
+
+        // Portfolio value
+        let posVal = 0;
+        SECTOR_KEYS.forEach(sym => {
+            if (positions[sym]) posVal += positions[sym].shares * priceMap[sym][dt];
+        });
+        const totalVal = cash + posVal;
+        equityCurve.push({ date: dt, value: totalVal });
+        spyCurve.push({ date: dt, value: cfg.capital * (spyPrice / priceMap['SPY'][dates[startIdx]]) });
+
+        if (Object.keys(positions).length === 0) cashDays++;
+
+        if (!isRebalDate(i)) continue;
+
+        // ── REBALANCE ──
+        const vix = vixMap[dt] || 0;
+
+        // Compute momentum (ROC) for all sectors
+        const lookbackDate = dates[i - cfg.lookback];
+        const momScores = [];
+        SECTOR_KEYS.forEach(sym => {
+            const curP = priceMap[sym][dt];
+            const prevP = priceMap[sym][lookbackDate];
+            if (curP && prevP && prevP > 0) {
+                momScores.push({ sym, roc: (curP - prevP) / prevP * 100, price: curP });
+            }
+        });
+        momScores.sort((a, b) => b.roc - a.roc); // descending
+
+        // VIX filter: if VIX >= threshold, go to cash
+        const vixBlock = cfg.vixOn && vix >= cfg.vixThresh;
+        const selected = vixBlock ? [] : momScores.slice(0, cfg.topN).map(m => m.sym);
+
+        // Sell positions not in new selection
+        const currentHoldings = Object.keys(positions);
+        currentHoldings.forEach(sym => {
+            if (!selected.includes(sym)) {
+                cash += positions[sym].shares * priceMap[sym][dt];
+                delete positions[sym];
+            }
+        });
+
+        // Calculate target allocation
+        if (selected.length > 0) {
+            // Total portfolio value after sells
+            let curPosVal = 0;
+            selected.forEach(sym => {
+                if (positions[sym]) curPosVal += positions[sym].shares * priceMap[sym][dt];
+            });
+            const totalNow = cash + curPosVal;
+            const targetPerSector = totalNow / selected.length;
+
+            // Rebalance each selected sector
+            selected.forEach(sym => {
+                const price = priceMap[sym][dt];
+                if (positions[sym]) {
+                    // Already holding — adjust to target
+                    const currentVal = positions[sym].shares * price;
+                    const diff = targetPerSector - currentVal;
+                    if (Math.abs(diff) > price * 0.5) { // only rebal if meaningful
+                        if (diff > 0) {
+                            const buyShares = Math.floor(diff / price);
+                            if (buyShares > 0 && cash >= buyShares * price) {
+                                positions[sym].shares += buyShares;
+                                cash -= buyShares * price;
+                            }
+                        } else {
+                            const sellShares = Math.min(Math.floor(-diff / price), positions[sym].shares);
+                            if (sellShares > 0) {
+                                positions[sym].shares -= sellShares;
+                                cash += sellShares * price;
+                                if (positions[sym].shares === 0) delete positions[sym];
+                            }
+                        }
+                    }
+                } else {
+                    // New position
+                    const shares = Math.floor(targetPerSector / price);
+                    if (shares > 0 && cash >= shares * price) {
+                        positions[sym] = { shares, entryPrice: price };
+                        cash -= shares * price;
+                    }
+                }
+            });
+        }
+
+        // Recalc portfolio after rebal
+        let newPosVal = 0;
+        Object.keys(positions).forEach(sym => { newPosVal += positions[sym].shares * priceMap[sym][dt]; });
+        const newTotal = cash + newPosVal;
+
+        // Log
+        const prevLog = monthlyLog.length > 0 ? monthlyLog[monthlyLog.length - 1] : null;
+        const prevVal = prevLog ? prevLog.totalVal : cfg.capital;
+        const monthRet = (newTotal - prevVal) / prevVal * 100;
+        const spyVal = cfg.capital * (spyPrice / priceMap['SPY'][dates[startIdx]]);
+        const prevSpyVal = prevLog ? prevLog.spyVal : cfg.capital;
+        const spyMonthRet = (spyVal - prevSpyVal) / prevSpyVal * 100;
+
+        monthlyLog.push({
+            date: dt, selected: [...selected], totalVal: newTotal, monthRet,
+            vix, vixBlock, spyVal, spyMonthRet,
+            momScores: momScores.slice(0, 5).map(m => m.sym + ' ' + (m.roc >= 0 ? '+' : '') + m.roc.toFixed(1) + '%')
+        });
+    }
+
+    // Final close
+    const lastDate = dates[dates.length - 1];
+    let finalPosVal = 0;
+    Object.keys(positions).forEach(sym => { finalPosVal += positions[sym].shares * priceMap[sym][lastDate]; });
+    const finalVal = cash + finalPosVal;
+    const spyFinal = cfg.capital * (priceMap['SPY'][lastDate] / priceMap['SPY'][dates[startIdx]]);
+
+    return {
+        equityCurve, spyCurve, monthlyLog,
+        finalVal, spyFinal,
+        startDate: dates[startIdx], endDate: lastDate,
+        cashDays, totalDays: dates.length - startIdx
+    };
+}
+
+// ─── RENDER ───
+function render(res, cfg) {
+    document.getElementById('results').classList.remove('hidden');
+
+    const years = (new Date(res.endDate) - new Date(res.startDate)) / (365.25 * 86400000);
+    const totalRet = (res.finalVal / cfg.capital - 1) * 100;
+    const spyRet = (res.spyFinal / cfg.capital - 1) * 100;
+    const cagr = (Math.pow(res.finalVal / cfg.capital, 1 / years) - 1) * 100;
+    const spyCagr = (Math.pow(res.spyFinal / cfg.capital, 1 / years) - 1) * 100;
+
+    // MDD
+    let peak = 0, mdd = 0, spyPk = 0, spyMdd = 0;
+    const ddData = [], spyDdData = [];
+    res.equityCurve.forEach((d, i) => {
+        if (d.value > peak) peak = d.value;
+        const dd = (d.value - peak) / peak * 100;
+        if (dd < mdd) mdd = dd;
+        ddData.push({ date: d.date, value: dd });
+        const sv = res.spyCurve[i].value;
+        if (sv > spyPk) spyPk = sv;
+        const sdd = (sv - spyPk) / spyPk * 100;
+        if (sdd < spyMdd) spyMdd = sdd;
+        spyDdData.push({ date: d.date, value: sdd });
+    });
+
+    // Sharpe (annualized from monthly returns)
+    const mRets = res.monthlyLog.map(m => m.monthRet / 100);
+    const avgM = mRets.reduce((a, b) => a + b, 0) / mRets.length;
+    const stdM = Math.sqrt(mRets.reduce((a, b) => a + (b - avgM) ** 2, 0) / mRets.length);
+    const sharpe = stdM > 0 ? (avgM / stdM) * Math.sqrt(12) : 0;
+
+    const spyMRets = res.monthlyLog.map(m => m.spyMonthRet / 100);
+    const spyAvgM = spyMRets.reduce((a, b) => a + b, 0) / spyMRets.length;
+    const spyStdM = Math.sqrt(spyMRets.reduce((a, b) => a + (b - spyAvgM) ** 2, 0) / spyMRets.length);
+    const spySharpe = spyStdM > 0 ? (spyAvgM / spyStdM) * Math.sqrt(12) : 0;
+
+    // Win rate
+    const winMonths = res.monthlyLog.filter(m => m.monthRet > 0).length;
+    const winRate = res.monthlyLog.length > 0 ? winMonths / res.monthlyLog.length * 100 : 0;
+    const spyWinMonths = res.monthlyLog.filter(m => m.spyMonthRet > 0).length;
+    const spyWinRate = res.monthlyLog.length > 0 ? spyWinMonths / res.monthlyLog.length * 100 : 0;
+
+    const cashPct = (res.cashDays / res.totalDays * 100);
+    const vixBlocked = res.monthlyLog.filter(m => m.vixBlock).length;
+
+    const $ = id => document.getElementById(id);
+    const fmt = v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    $('sFinal').textContent = fmt(res.finalVal);
+    $('sFinal').className = 'stat-value ' + (totalRet >= spyRet ? 'pos' : 'neg');
+    $('sFinalSub').textContent = (totalRet >= 0 ? '+' : '') + totalRet.toFixed(1) + '%';
+
+    $('sSpy').textContent = fmt(res.spyFinal);
+    $('sSpySub').textContent = (spyRet >= 0 ? '+' : '') + spyRet.toFixed(1) + '%';
+
+    $('sCagr').textContent = (cagr >= 0 ? '+' : '') + cagr.toFixed(1) + '%';
+    $('sCagr').className = 'stat-value ' + (cagr >= spyCagr ? 'pos' : 'neg');
+    $('sCagrSub').textContent = 'SPY: ' + (spyCagr >= 0 ? '+' : '') + spyCagr.toFixed(1) + '%';
+
+    $('sMdd').textContent = mdd.toFixed(1) + '%';
+    $('sMdd').className = 'stat-value neg';
+    $('sMddSub').textContent = 'SPY: ' + spyMdd.toFixed(1) + '%';
+
+    $('sSharpe').textContent = sharpe.toFixed(2);
+    $('sSharpe').className = 'stat-value ' + (sharpe >= spySharpe ? 'pos' : 'neg');
+    $('sSharpeSub').textContent = 'SPY: ' + spySharpe.toFixed(2);
+
+    $('sWinM').textContent = winRate.toFixed(0) + '%';
+    $('sWinM').className = 'stat-value ' + (winRate >= 50 ? 'pos' : 'neg');
+    $('sWinMSub').textContent = 'SPY: ' + spyWinRate.toFixed(0) + '%';
+
+    $('sRebal').textContent = res.monthlyLog.length + '회';
+    $('sRebalSub').textContent = years.toFixed(1) + '년 · ' + res.startDate + ' ~ ' + res.endDate;
+
+    $('sCash').textContent = cashPct.toFixed(0) + '%';
+    $('sCashSub').textContent = cfg.vixOn ? 'VIX 차단: ' + vixBlocked + '회' : 'VIX 필터 OFF';
+
+    buildEquityChart(res, ddData, spyDdData);
+    buildHoldingTable(res);
+    buildSectorFreq(res);
+    buildAnnualTable(res, cfg);
+}
+
+// ─── WATERMARK ───
+const WM = {
+    id: 'wm', afterDraw(c) {
+        const ctx = c.ctx, a = c.chartArea, w = a.right - a.left;
+        const fs = Math.max(14, Math.min(36, w * 0.06));
+        ctx.save(); ctx.globalAlpha = 0.07; ctx.font = `700 ${fs}px JetBrains Mono`;
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('Herdvibe.com', (a.left + a.right) / 2, (a.top + a.bottom) / 2); ctx.restore();
+    }
+};
+
+function destroyCharts() { Object.values(_charts).forEach(c => { if (c) c.destroy(); }); _charts = {}; }
+
+function buildEquityChart(res, ddData, spyDdData) {
+    destroyCharts();
+    const w = d => toWeekly(d);
+
+    _charts.equity = new Chart(document.getElementById('cEquity'), {
+        type: 'line',
+        data: { datasets: [
+            { label: '모멘텀 전략', data: w(res.equityCurve).map(d => ({ x: new Date(d.date).getTime(), y: d.value })), borderColor: '#00d4aa', borderWidth: 2.5, pointRadius: 0, tension: 0.1, fill: false },
+            { label: 'SPY B&H', data: w(res.spyCurve).map(d => ({ x: new Date(d.date).getTime(), y: d.value })), borderColor: 'rgba(255,255,255,0.25)', borderWidth: 1.5, pointRadius: 0, tension: 0.1, borderDash: [4, 3], fill: false }
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+                x: { type: 'time', time: { unit: 'year', displayFormats: { year: 'yyyy' }}, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 }}, border: { color: 'rgba(255,255,255,0.1)' }},
+                y: { type: 'logarithmic', position: 'right', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 })}, border: { color: 'rgba(255,255,255,0.1)' }}
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false, callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString('en-US', { maximumFractionDigits: 0 })}},
+                zoom: { zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x', onZoom: () => { document.getElementById('zoomReset1').style.display = 'block'; }}, pan: { enabled: true, mode: 'x' }}
+            }
+        },
+        plugins: [WM]
+    });
+
+    _charts.dd = new Chart(document.getElementById('cDD'), {
+        type: 'line',
+        data: { datasets: [
+            { label: '전략 낙폭', data: w(ddData).map(d => ({ x: new Date(d.date).getTime(), y: d.value })), borderColor: '#ff4757', borderWidth: 1.5, pointRadius: 0, fill: true, backgroundColor: 'rgba(255,71,87,0.08)', tension: 0.1 },
+            { label: 'SPY 낙폭', data: w(spyDdData).map(d => ({ x: new Date(d.date).getTime(), y: d.value })), borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, pointRadius: 0, borderDash: [3, 3], fill: false, tension: 0.1 }
+        ]},
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+                x: { type: 'time', time: { unit: 'year', displayFormats: { year: 'yyyy' }}, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 9 }}, border: { color: 'rgba(255,255,255,0.1)' }},
+                y: { position: 'right', max: 0, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 9 }, callback: v => v.toFixed(0) + '%' }, border: { color: 'rgba(255,255,255,0.1)' }}
+            },
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%' }}}
+        },
+        plugins: [WM]
+    });
+}
+
+function buildHoldingTable(res) {
+    const body = document.getElementById('holdingBody');
+    let html = '';
+    res.monthlyLog.forEach(m => {
+        const retColor = m.monthRet >= 0 ? 'var(--cyan)' : 'var(--red)';
+        const sectors = m.selected.length > 0
+            ? m.selected.map(s => `<span style="color:${SECTORS[s].color};font-weight:600">${s}</span>`).join(' · ')
+            : '<span style="color:var(--t3)">현금 100%</span>';
+        const status = m.vixBlock
+            ? '<span class="badge" style="background:rgba(255,212,59,0.12);color:var(--yellow)">VIX 차단</span>'
+            : '<span class="badge badge-hold">투자중</span>';
+        html += `<tr>
+            <td>${m.date}</td>
+            <td>${sectors}</td>
+            <td style="color:${retColor}">${(m.monthRet >= 0 ? '+' : '') + m.monthRet.toFixed(2)}%</td>
+            <td>$${m.totalVal.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+            <td>${m.vix ? m.vix.toFixed(1) : '-'}</td>
+            <td>${status}</td>
+        </tr>`;
+    });
+    body.innerHTML = html;
+}
+
+function buildSectorFreq(res) {
+    // Count selections
+    const freq = {}; const contribs = {};
+    SECTOR_KEYS.forEach(s => { freq[s] = 0; contribs[s] = []; });
+    res.monthlyLog.forEach(m => {
+        m.selected.forEach(s => {
+            freq[s]++;
+            contribs[s].push(m.monthRet / m.selected.length); // approximate contribution
+        });
+    });
+
+    const totalMonths = res.monthlyLog.length;
+    const sorted = SECTOR_KEYS.slice().sort((a, b) => freq[b] - freq[a]);
+
+    // Chart
+    if (_charts.freq) _charts.freq.destroy();
+    _charts.freq = new Chart(document.getElementById('cFreq'), {
+        type: 'bar',
+        data: {
+            labels: sorted.map(s => s),
+            datasets: [{
+                label: '선정 횟수',
+                data: sorted.map(s => freq[s]),
+                backgroundColor: sorted.map(s => SECTORS[s].color + 'CC'),
+                borderColor: sorted.map(s => SECTORS[s].color),
+                borderWidth: 1, borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false, indexAxis: 'y',
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 }}, border: { color: 'rgba(255,255,255,0.1)' }},
+                y: { grid: { display: false }, ticks: { color: '#ccc', font: { family: 'JetBrains Mono', size: 11, weight: 600 }}, border: { color: 'rgba(255,255,255,0.1)' }}
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ctx.parsed.x + '회 (' + (ctx.parsed.x / totalMonths * 100).toFixed(0) + '%)' }}
+            }
+        },
+        plugins: [WM]
+    });
+
+    // Table
+    const sBody = document.getElementById('sectorBody');
+    let html = '';
+    sorted.forEach(sym => {
+        const f = freq[sym];
+        const pct = totalMonths > 0 ? (f / totalMonths * 100).toFixed(1) : '0';
+        const avgRet = contribs[sym].length > 0 ? (contribs[sym].reduce((a, b) => a + b, 0) / contribs[sym].length).toFixed(2) : '-';
+        const cumContrib = contribs[sym].reduce((a, b) => a + b, 0).toFixed(1);
+        const avgColor = parseFloat(avgRet) >= 0 ? 'var(--cyan)' : 'var(--red)';
+        const cumColor = parseFloat(cumContrib) >= 0 ? 'var(--cyan)' : 'var(--red)';
+        html += `<tr>
+            <td style="color:${SECTORS[sym].color};font-weight:600">${sym} ${SECTORS[sym].name}</td>
+            <td>${f}회</td>
+            <td>${pct}%</td>
+            <td style="color:${avgColor}">${avgRet === '-' ? '-' : (parseFloat(avgRet) >= 0 ? '+' : '') + avgRet + '%'}</td>
+            <td style="color:${cumColor}">${cumContrib === '0.0' ? '-' : (parseFloat(cumContrib) >= 0 ? '+' : '') + cumContrib + '%'}</td>
+        </tr>`;
+    });
+    sBody.innerHTML = html;
+}
+
+function buildAnnualTable(res, cfg) {
+    const body = document.getElementById('annualBody');
+    // Group monthly log by year
+    const byYear = {};
+    res.monthlyLog.forEach(m => {
+        const y = m.date.slice(0, 4);
+        if (!byYear[y]) byYear[y] = { strat: [], spy: [] };
+        byYear[y].strat.push(m.monthRet / 100);
+        byYear[y].spy.push(m.spyMonthRet / 100);
+    });
+
+    let html = '';
+    const yrs = Object.keys(byYear).sort();
+    let cumStrat = 0, cumSpy = 0;
+    yrs.forEach(y => {
+        const sRet = byYear[y].strat.reduce((a, r) => a * (1 + r), 1) - 1;
+        const spyR = byYear[y].spy.reduce((a, r) => a * (1 + r), 1) - 1;
+        const excess = sRet - spyR;
+        cumStrat += sRet * 100; cumSpy += spyR * 100;
+        const sColor = sRet >= 0 ? 'var(--cyan)' : 'var(--red)';
+        const spColor = spyR >= 0 ? 'var(--cyan)' : 'var(--red)';
+        const eColor = excess >= 0 ? 'var(--cyan)' : 'var(--red)';
+        html += `<tr>
+            <td style="font-weight:600">${y}</td>
+            <td style="color:${sColor}">${(sRet >= 0 ? '+' : '') + (sRet * 100).toFixed(1)}%</td>
+            <td style="color:${spColor}">${(spyR >= 0 ? '+' : '') + (spyR * 100).toFixed(1)}%</td>
+            <td style="color:${eColor};font-weight:600">${(excess >= 0 ? '+' : '') + (excess * 100).toFixed(1)}%</td>
+        </tr>`;
+    });
+    body.innerHTML = html;
+}
+
+// ─── HELPERS ───
+function toWeekly(data) {
+    if (!data.length) return [];
+    const w = []; let wk = null, buf = [];
+    data.forEach(d => {
+        const k = new Date(d.date); k.setDate(k.getDate() - k.getDay());
+        const ws = k.toISOString().slice(0, 10);
+        if (wk !== ws) { if (buf.length) w.push(buf[buf.length - 1]); wk = ws; buf = [d]; } else buf.push(d);
+    });
+    if (buf.length) w.push(buf[buf.length - 1]);
+    return w;
+}
+
+function resetZ(key) {
+    if (_charts[key]) { _charts[key].resetZoom(); document.getElementById('zoomReset1').style.display = 'none'; }
+}
+
+// ─── SHARE ───
+function openUrl(u){try{const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){try{window.open(u,'_blank');}catch(e2){}}}
+function doCopy(t){try{window.parent.postMessage({type:'clipboard',text:t},'*');}catch(e){}try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t);return;}}catch(e){}try{const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.cssText='position:fixed;left:0;top:0;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);}catch(e){window.prompt('아래 링크를 복사하세요:',t);}}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function doShare(p){
+    const t='섹터 모멘텀 로테이션 백테스트 — HerdVibe';
+    switch(p){
+        case'twitter':openUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(SHARE_URL)}`);break;
+        case'telegram':openUrl(`https://t.me/share/url?url=${encodeURIComponent(SHARE_URL)}&text=${encodeURIComponent(t)}`);break;
+        case'kakao':try{Kakao.Share.sendDefault({objectType:'feed',content:{title:'섹터 모멘텀 로테이션 백테스트',description:'모멘텀 상위 섹터 매월 로테이션 퀀트 전략',imageUrl:'',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}},buttons:[{title:'차트 보기',link:{mobileWebUrl:SHARE_URL,webUrl:SHARE_URL}}]});}catch(e){openUrl(`https://story.kakao.com/share?url=${encodeURIComponent(SHARE_URL)}`);}break;
+        case'instagram':doCopy(SHARE_URL);showToast('링크가 복사되었습니다 — 인스타그램에 붙여넣기 하세요');break;
+        case'copy':doCopy(SHARE_URL);showToast('링크가 복사되었습니다');break;
+    }
+}
+
+// ─── IFRAME RESIZE ───
+(function(){var lh=0;var c=document.querySelector('.container');setInterval(function(){if(window.parent===window)return;var h=c?c.offsetHeight+40:0;if(h>0&&Math.abs(h-lh)>5){lh=h;window.parent.postMessage({type:'resize',height:h},'*');}},500);})();
+</script>
+</body>
+</html>
