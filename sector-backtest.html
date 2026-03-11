@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>섹터 Z-Score 백테스트 | HerdVibe</title>
+    <meta property="og:title" content="섹터 Z-Score 백테스트">
+    <meta property="og:description" content="SPY 대비 저평가 섹터 매수, 고평가 시 매도 — Z-Score 기반 섹터 로테이션 백테스트">
+    <meta property="og:url" content="https://herdvibe.com/128">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="HerdVibe">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#333;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#555}
+        :root{
+            --bg-primary:#0a0a0a;--bg-secondary:#111111;--bg-tertiary:#1a1a1a;
+            --text-primary:#ffffff;--text-secondary:#888888;--text-muted:#555555;
+            --accent-cyan:#00d4aa;--accent-red:#ff4757;--accent-yellow:#ffd43b;--accent-blue:#4dabf7;
+            --border-color:#2a2a2a;
+        }
+        html,body{overflow-x:hidden}
+        body{font-family:'Noto Sans KR',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6}
+        .container{max-width:1400px;margin:0 auto;padding:20px}
+        .header{text-align:center;padding:30px 0 20px;border-bottom:1px solid var(--border-color);margin-bottom:24px}
+        .header h1{font-size:1.8rem;font-weight:700;letter-spacing:-0.5px;margin-bottom:6px}
+        .header p{color:var(--text-secondary);font-size:0.85rem}
+        .header .tag{display:inline-block;padding:3px 10px;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.25);border-radius:20px;font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--accent-cyan);margin-top:8px}
+
+        /* Controls Panel */
+        .controls-panel{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .controls-title{font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .controls-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:16px}
+        .control-group{display:flex;flex-direction:column;gap:4px}
+        .control-label{font-size:11px;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+        .control-input{padding:9px 12px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-tertiary);color:var(--text-primary);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;transition:all .2s;width:100%}
+        .control-input:focus{outline:none;border-color:var(--accent-cyan);box-shadow:0 0 0 2px rgba(0,212,170,0.15)}
+        select.control-input{-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer}
+        .run-btn{padding:10px 28px;background:var(--accent-cyan);color:#000;border:none;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:0.3px;align-self:flex-end}
+        .run-btn:hover{background:#00eabb;box-shadow:0 0 20px rgba(0,212,170,0.3)}
+        .run-btn:disabled{opacity:0.4;cursor:not-allowed}
+        .controls-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+        .strategy-desc{font-size:12px;color:var(--text-secondary);max-width:700px;line-height:1.7}
+        .strategy-desc strong{color:var(--accent-cyan)}
+
+        /* Stats Row */
+        .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+        .stat-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:16px;text-align:center}
+        .stat-label{font-size:0.68rem;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px}
+        .stat-value{font-family:'JetBrains Mono',monospace;font-size:1.25rem;font-weight:700}
+        .stat-sub{font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--text-secondary);margin-top:2px}
+        .positive{color:var(--accent-cyan)}.negative{color:var(--accent-red)}.neutral{color:var(--text-secondary)}
+
+        /* Chart Card */
+        .chart-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:24px;margin-bottom:20px;position:relative}
+        .chart-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:12px}
+        .chart-title-group h2{font-size:1.1rem;font-weight:700;margin-bottom:2px}
+        .chart-title-group .subtitle{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-muted)}
+        .legend-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+        .legend-item{display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--text-secondary);white-space:nowrap}
+        .legend-line{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+        .chart-container{position:relative;width:100%;height:380px}
+        .chart-container-sm{position:relative;width:100%;height:220px}
+
+        .zoom-reset-btn{padding:5px 12px;background:rgba(255,255,255,0.08);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s;display:none;flex-shrink:0}
+        .zoom-reset-btn:hover{background:rgba(255,255,255,0.15);color:#fff;border-color:var(--accent-cyan)}
+        .zoom-hint{text-align:center;font-size:10px;color:var(--text-muted);margin-top:6px;font-family:'JetBrains Mono',monospace}
+
+        /* Trade Log */
+        .trade-section{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .trade-section h3{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .trade-table-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
+        .trade-table{width:100%;border-collapse:collapse;font-size:12px}
+        .trade-table th{position:sticky;top:0;background:var(--bg-tertiary);font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border-color)}
+        .trade-table td{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.03);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary)}
+        .trade-table tr:hover td{background:rgba(255,255,255,0.02)}
+        .trade-table .buy-row td{color:var(--accent-cyan)}
+        .trade-table .sell-row td{color:var(--accent-red)}
+        .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
+        .badge-buy{background:rgba(0,212,170,0.12);color:var(--accent-cyan)}
+        .badge-sell{background:rgba(255,71,87,0.12);color:var(--accent-red)}
+
+        /* Position timeline */
+        .timeline-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:20px 24px;margin-bottom:20px}
+        .timeline-card h3{font-size:14px;font-weight:700;margin-bottom:4px}
+        .timeline-card .subtitle{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text-muted);margin-bottom:14px}
+
+        /* Share */
+        .share-section{display:flex;justify-content:center;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+        .share-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;color:var(--text-secondary);font-size:0.78rem;font-family:'Noto Sans KR',sans-serif;cursor:pointer;transition:all .2s;text-decoration:none}
+        .share-btn:hover{background:var(--bg-tertiary);border-color:#3a3a3a;color:var(--text-primary)}
+        .share-btn svg{width:14px;height:14px;flex-shrink:0}
+        .share-btn.twitter:hover{color:#fff;border-color:#555}
+        .share-btn.telegram{color:#29b6f6;border-color:rgba(41,182,246,0.2)}.share-btn.telegram:hover{background:rgba(41,182,246,0.08);border-color:rgba(41,182,246,0.4)}
+        .share-btn.kakao{color:#fee500;border-color:rgba(254,229,0,0.2)}.share-btn.kakao:hover{background:rgba(254,229,0,0.08);border-color:rgba(254,229,0,0.4)}
+        .share-btn.instagram{color:#e1306c;border-color:rgba(225,48,108,0.2)}.share-btn.instagram:hover{background:rgba(225,48,108,0.08);border-color:rgba(225,48,108,0.4)}
+        .share-btn.copy:hover{color:var(--accent-cyan);border-color:rgba(0,212,170,0.3)}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-color);padding:12px 24px;border-radius:10px;font-size:0.8rem;z-index:9999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+        .footer{text-align:center;padding:20px;color:var(--text-muted);font-size:0.75rem}
+        .loading-overlay{display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;gap:12px;color:var(--text-muted);font-size:0.85rem}
+        .spinner{width:36px;height:36px;border:3px solid var(--border-color);border-top-color:var(--accent-cyan);border-radius:50%;animation:spin .8s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        .hidden{display:none !important}
+
+        @media(max-width:768px){
+            .container{padding:12px}.header{padding:20px 0 15px}.header h1{font-size:1.4rem}
+            .chart-card{padding:15px 12px}.chart-container{height:300px}.chart-container-sm{height:180px}
+            .stats-row{grid-template-columns:repeat(2,1fr);gap:8px}.stat-value{font-size:1.05rem}
+            .controls-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+            .share-section{gap:6px}.share-btn{padding:8px 12px;font-size:0.75rem}
+        }
+        @media(max-width:480px){
+            .chart-container{height:260px}.chart-container-sm{height:160px}
+            .controls-grid{grid-template-columns:1fr 1fr}
+            .share-section{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}.share-btn{padding:8px 4px;font-size:0.65rem;justify-content:center}.share-btn svg{width:12px;height:12px}
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header class="header">
+        <h1>섹터 Z-Score 백테스트</h1>
+        <p>SPY 대비 저평가 섹터 매수, 고평가 시 매도 — Z-Score 기반 섹터 로테이션 전략</p>
+        <div class="tag">Strategy B · Threshold-Based Mean Reversion</div>
+    </header>
+
+    <!-- Controls -->
+    <div class="controls-panel">
+        <div class="controls-title">⚙️ 백테스트 설정</div>
+        <div class="controls-grid">
+            <div class="control-group">
+                <label class="control-label">초기 자본</label>
+                <input type="number" class="control-input" id="inputCapital" value="100000" min="1000" step="1000">
+            </div>
+            <div class="control-group">
+                <label class="control-label">Z-Score 기간</label>
+                <select class="control-input" id="inputZPeriod">
+                    <option value="126">6개월 (126일)</option>
+                    <option value="252">1년 (252일)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label class="control-label">매수 진입 (Z ≤)</label>
+                <input type="number" class="control-input" id="inputBuyZ" value="-2" step="0.1" min="-4" max="0">
+            </div>
+            <div class="control-group">
+                <label class="control-label">매도 퇴출 (Z ≥)</label>
+                <input type="number" class="control-input" id="inputSellZ" value="2" step="0.1" min="0" max="4">
+            </div>
+            <div class="control-group">
+                <label class="control-label">최대 동시 보유</label>
+                <select class="control-input" id="inputMaxPos">
+                    <option value="1">1개 섹터</option>
+                    <option value="2">2개 섹터</option>
+                    <option value="3" selected>3개 섹터</option>
+                    <option value="4">4개 섹터</option>
+                    <option value="5">5개 섹터</option>
+                    <option value="11">제한 없음 (전체)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label class="control-label">리밸런싱 주기</label>
+                <select class="control-input" id="inputRebal">
+                    <option value="weekly" selected>매주</option>
+                    <option value="monthly">매월</option>
+                </select>
+            </div>
+        </div>
+        <div class="controls-footer">
+            <div class="strategy-desc">
+                Z-Score가 <strong>매수 임계값 이하</strong>인 섹터 중 가장 낮은 순서대로 최대 N개를 동일비중으로 매수합니다.
+                보유 중인 섹터의 Z-Score가 <strong>매도 임계값 이상</strong>이 되면 매도합니다.
+                신호가 없으면 현금(Cash) 보유 상태를 유지합니다.
+            </div>
+            <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ 백테스트 실행</button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingWrap" class="hidden">
+        <div class="loading-overlay" id="loading">
+            <div class="spinner"></div>
+            <span id="loadingText">데이터 로딩 중...</span>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsWrap" class="hidden">
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card">
+                <div class="stat-label">전략 최종 자산</div>
+                <div class="stat-value" id="statFinal">--</div>
+                <div class="stat-sub" id="statFinalSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">SPY B&H 최종</div>
+                <div class="stat-value neutral" id="statSpy">--</div>
+                <div class="stat-sub" id="statSpySub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">전략 CAGR</div>
+                <div class="stat-value" id="statCagr">--</div>
+                <div class="stat-sub" id="statCagrSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">최대 낙폭 (MDD)</div>
+                <div class="stat-value" id="statMdd">--</div>
+                <div class="stat-sub" id="statMddSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">총 거래 횟수</div>
+                <div class="stat-value neutral" id="statTrades">--</div>
+                <div class="stat-sub" id="statTradesSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">승률</div>
+                <div class="stat-value" id="statWin">--</div>
+                <div class="stat-sub" id="statWinSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">투자 기간</div>
+                <div class="stat-value neutral" id="statPeriod">--</div>
+                <div class="stat-sub" id="statPeriodSub">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">현금 보유 비율</div>
+                <div class="stat-value neutral" id="statCash">--</div>
+                <div class="stat-sub" id="statCashSub">--</div>
+            </div>
+        </div>
+
+        <!-- Equity Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title-group">
+                    <h2>📈 수익률 곡선</h2>
+                    <div class="subtitle">전략 vs SPY Buy & Hold · 로그 스케일</div>
+                </div>
+                <button class="zoom-reset-btn" id="zoomResetEquity" onclick="resetZoomEquity()">↺ Reset Zoom</button>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-line" style="background:var(--accent-cyan)"></span>Z-Score 전략</div>
+                    <div class="legend-item"><span class="legend-line" style="background:rgba(255,255,255,0.25)"></span>SPY Buy & Hold</div>
+                </div>
+            </div>
+            <div class="chart-container"><canvas id="equityChart"></canvas></div>
+            <div class="zoom-hint">마우스 휠로 줌 · 드래그로 이동</div>
+        </div>
+
+        <!-- Drawdown Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title-group">
+                    <h2>📉 낙폭 (Drawdown)</h2>
+                    <div class="subtitle">고점 대비 하락률</div>
+                </div>
+                <div class="legend-row">
+                    <div class="legend-item"><span class="legend-line" style="background:var(--accent-red)"></span>전략 낙폭</div>
+                    <div class="legend-item"><span class="legend-line" style="background:rgba(255,255,255,0.2)"></span>SPY 낙폭</div>
+                </div>
+            </div>
+            <div class="chart-container-sm"><canvas id="ddChart"></canvas></div>
+        </div>
+
+        <!-- Position Timeline -->
+        <div class="timeline-card">
+            <h3>🗓️ 포지션 타임라인</h3>
+            <div class="subtitle">섹터별 보유 기간 · 색상 = 섹터 컬러</div>
+            <div class="chart-container-sm"><canvas id="timelineChart"></canvas></div>
+        </div>
+
+        <!-- Sector Performance Summary -->
+        <div class="trade-section">
+            <h3>📊 섹터별 성과 요약</h3>
+            <div class="trade-table-wrap">
+                <table class="trade-table" id="sectorSummaryTable">
+                    <thead>
+                        <tr>
+                            <th>섹터</th>
+                            <th>거래 횟수</th>
+                            <th>승률</th>
+                            <th>평균 수익률</th>
+                            <th>누적 수익</th>
+                            <th>평균 보유일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sectorSummaryBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Trade Log -->
+        <div class="trade-section">
+            <h3>📋 거래 내역 <span style="font-weight:400;font-size:11px;color:var(--text-muted)" id="tradeCount"></span></h3>
+            <div class="trade-table-wrap">
+                <table class="trade-table" id="tradeTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>유형</th>
+                            <th>섹터</th>
+                            <th>날짜</th>
+                            <th>가격</th>
+                            <th>수량</th>
+                            <th>금액</th>
+                            <th>Z-Score</th>
+                            <th>수익률</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradeBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share -->
+    <div class="share-section">
+        <button class="share-btn twitter" onclick="doShare('twitter')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>트위터</button>
+        <button class="share-btn telegram" onclick="doShare('telegram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>텔레그램</button>
+        <button class="share-btn kakao" onclick="doShare('kakao')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.724 1.8 5.116 4.508 6.482-.144.525-.925 3.388-.958 3.603 0 0-.02.157.083.217.103.06.224.013.224.013.296-.041 3.434-2.263 3.973-2.652.703.098 1.428.15 2.17.15 5.523 0 10-3.463 10-7.813C22 6.463 17.523 3 12 3z"/></svg>카카오톡</button>
+        <button class="share-btn instagram" onclick="doShare('instagram')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>인스타그램</button>
+        <button class="share-btn copy" onclick="doShare('copy')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>링크복사</button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <footer class="footer">
+        데이터 출처: Yahoo Finance | 매일 자동 업데이트 · <a href="https://herdvibe.com" style="color:var(--accent-cyan);text-decoration:none">herdvibe.com</a>
+        <br><span style="font-size:0.65rem;color:#444">※ 본 백테스트는 과거 데이터 기반이며, 미래 수익을 보장하지 않습니다. 수수료·슬리피지 미반영.</span>
+    </footer>
+</div>
+
+<script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
+<script>try{Kakao.init('a43ed7b39fac35458f4f9df925a279b5');}catch(e){}</script>
+
+<script>
+const SHARE_URL = 'https://herdvibe.com/128';
+const DATA_BASE = 'data/history/';
+
+const SECTORS = {
+    XLK:{name:'기술',color:'#3b82f6'},XLF:{name:'금융',color:'#22c55e'},XLV:{name:'헬스케어',color:'#ef4444'},
+    XLY:{name:'임의소비재',color:'#f59e0b'},XLC:{name:'커뮤니케이션',color:'#8b5cf6'},XLI:{name:'산업재',color:'#06b6d4'},
+    XLP:{name:'필수소비재',color:'#ec4899'},XLE:{name:'에너지',color:'#84cc16'},XLU:{name:'유틸리티',color:'#f97316'},
+    XLRE:{name:'부동산',color:'#14b8a6'},XLB:{name:'소재',color:'#a855f7'}
+};
+
+let _spyData = [], _sectorData = {};
+let _equityChart = null, _ddChart = null, _timelineChart = null;
+let _dataLoaded = false;
+
+// ─── DATA LOADING ───
+async function loadCSV(filename) {
+    const resp = await fetch(DATA_BASE + filename);
+    const text = await resp.text();
+    const lines = text.trim().replace(/\r/g, '').split('\n');
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        const close = parseFloat(parts[1]);
+        if (!isNaN(close) && parts[0]) {
+            const date = new Date(parts[0]);
+            if (!isNaN(date.getTime())) data.push({ date, price: close });
+        }
+    }
+    data.sort((a, b) => a.date - b.date);
+    return data;
+}
+
+async function loadAllData() {
+    if (_dataLoaded) return;
+    document.getElementById('loadingWrap').classList.remove('hidden');
+    document.getElementById('loadingText').textContent = '데이터 로딩 중...';
+
+    const symbols = ['SPY', ...Object.keys(SECTORS)];
+    const results = await Promise.all(symbols.map(s => loadCSV(s + '.csv')));
+    _spyData = results[0];
+    Object.keys(SECTORS).forEach((s, i) => { _sectorData[s] = results[i + 1]; });
+
+    if (!_spyData.length) throw new Error('SPY 데이터를 불러올 수 없습니다');
+    _dataLoaded = true;
+}
+
+// ─── Z-SCORE COMPUTATION ───
+function alignAndRatio(sectorData, spyData) {
+    const spyMap = {};
+    spyData.forEach(d => { spyMap[d.date.toISOString().slice(0, 10)] = d.price; });
+    const result = [];
+    sectorData.forEach(d => {
+        const key = d.date.toISOString().slice(0, 10);
+        if (spyMap[key] && spyMap[key] > 0) {
+            result.push({ date: d.date, dateStr: key, sectorPrice: d.price, spyPrice: spyMap[key], ratio: d.price / spyMap[key] });
+        }
+    });
+    return result;
+}
+
+function computeZScoreSeries(ratioData, windowDays) {
+    const results = [];
+    for (let i = windowDays; i < ratioData.length; i++) {
+        const slice = ratioData.slice(i - windowDays, i);
+        const vals = slice.map(d => d.ratio);
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const std = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
+        if (std > 0) {
+            results.push({
+                date: ratioData[i].date,
+                dateStr: ratioData[i].dateStr,
+                zScore: (ratioData[i].ratio - mean) / std,
+                sectorPrice: ratioData[i].sectorPrice,
+                spyPrice: ratioData[i].spyPrice
+            });
+        }
+    }
+    return results;
+}
+
+// ─── BACKTEST ENGINE ───
+function runBacktest() {
+    const capital = parseFloat(document.getElementById('inputCapital').value) || 100000;
+    const zPeriod = parseInt(document.getElementById('inputZPeriod').value);
+    const buyZ = parseFloat(document.getElementById('inputBuyZ').value);
+    const sellZ = parseFloat(document.getElementById('inputSellZ').value);
+    const maxPos = parseInt(document.getElementById('inputMaxPos').value);
+    const rebalFreq = document.getElementById('inputRebal').value;
+
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('runBtn').textContent = '⏳ 실행 중...';
+
+    loadAllData().then(() => {
+        document.getElementById('loadingWrap').classList.add('hidden');
+        try {
+            const result = executeBacktest(capital, zPeriod, buyZ, sellZ, maxPos, rebalFreq);
+            displayResults(result, capital);
+        } catch (e) {
+            alert('백테스트 오류: ' + e.message);
+            console.error(e);
+        }
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').textContent = '▶ 백테스트 실행';
+    }).catch(e => {
+        document.getElementById('loadingWrap').classList.add('hidden');
+        document.getElementById('loading').innerHTML = '⚠️ ' + e.message;
+        document.getElementById('runBtn').disabled = false;
+        document.getElementById('runBtn').textContent = '▶ 백테스트 실행';
+    });
+}
+
+function executeBacktest(capital, zPeriod, buyZ, sellZ, maxPos, rebalFreq) {
+    // 1) Compute Z-Scores for all sectors
+    const sectorZ = {};
+    Object.keys(SECTORS).forEach(sym => {
+        const aligned = alignAndRatio(_sectorData[sym], _spyData);
+        sectorZ[sym] = computeZScoreSeries(aligned, zPeriod);
+    });
+
+    // 2) Build a unified date index (dates where ALL sectors + SPY have data)
+    const allDatesSet = new Set();
+    Object.values(sectorZ).forEach(arr => arr.forEach(d => allDatesSet.add(d.dateStr)));
+    const allDates = [...allDatesSet].sort();
+
+    // Build lookup maps: dateStr -> { zScore, sectorPrice, spyPrice }
+    const zLookup = {};
+    Object.keys(SECTORS).forEach(sym => {
+        zLookup[sym] = {};
+        sectorZ[sym].forEach(d => { zLookup[sym][d.dateStr] = d; });
+    });
+
+    // SPY price lookup
+    const spyPriceLookup = {};
+    _spyData.forEach(d => { spyPriceLookup[d.date.toISOString().slice(0, 10)] = d.price; });
+
+    // 3) Determine rebalance dates
+    function isRebalDate(dateStr, idx) {
+        if (rebalFreq === 'weekly') {
+            const d = new Date(dateStr);
+            return d.getDay() === 5 || idx === 0; // Friday or first date
+        } else {
+            // Monthly: first trading day of each month
+            if (idx === 0) return true;
+            const prev = allDates[idx - 1];
+            return dateStr.slice(0, 7) !== prev.slice(0, 7);
+        }
+    }
+
+    // 4) Run simulation
+    let cash = capital;
+    const positions = {}; // sym -> { shares, entryPrice, entryDate, entryZ }
+    const trades = [];
+    const equityCurve = [];
+    const spyCurve = [];
+    const positionLog = []; // for timeline: { sym, entryDate, exitDate }
+
+    const spyStartPrice = spyPriceLookup[allDates[0]];
+    let cashDays = 0, totalDays = 0;
+
+    for (let i = 0; i < allDates.length; i++) {
+        const dateStr = allDates[i];
+        const spyPrice = spyPriceLookup[dateStr];
+        if (!spyPrice) continue;
+
+        totalDays++;
+
+        // Calculate current portfolio value
+        let posValue = 0;
+        Object.keys(positions).forEach(sym => {
+            const data = zLookup[sym][dateStr];
+            if (data) posValue += positions[sym].shares * data.sectorPrice;
+            else posValue += positions[sym].shares * positions[sym].entryPrice; // fallback
+        });
+        const totalValue = cash + posValue;
+
+        if (Object.keys(positions).length === 0) cashDays++;
+
+        equityCurve.push({ date: dateStr, value: totalValue });
+        spyCurve.push({ date: dateStr, value: capital * (spyPrice / spyStartPrice) });
+
+        // Check rebalance
+        if (!isRebalDate(dateStr, i)) continue;
+
+        // ── SELL: Check sell signals ──
+        const symsToSell = [];
+        Object.keys(positions).forEach(sym => {
+            const data = zLookup[sym][dateStr];
+            if (data && data.zScore >= sellZ) {
+                symsToSell.push(sym);
+            }
+        });
+
+        symsToSell.forEach(sym => {
+            const data = zLookup[sym][dateStr];
+            const pos = positions[sym];
+            const proceeds = pos.shares * data.sectorPrice;
+            const pnl = (data.sectorPrice - pos.entryPrice) / pos.entryPrice * 100;
+            cash += proceeds;
+            trades.push({
+                type: 'SELL', sym, date: dateStr, price: data.sectorPrice,
+                shares: pos.shares, amount: proceeds, z: data.zScore,
+                pnl, entryDate: pos.entryDate
+            });
+            positionLog.push({ sym, entryDate: pos.entryDate, exitDate: dateStr });
+            delete positions[sym];
+        });
+
+        // ── BUY: Check buy signals ──
+        const currentHoldings = Object.keys(positions).length;
+        const availableSlots = maxPos - currentHoldings;
+
+        if (availableSlots > 0) {
+            // Find sectors with Z ≤ buyZ, not already held, sorted by Z ascending
+            const candidates = [];
+            Object.keys(SECTORS).forEach(sym => {
+                if (positions[sym]) return; // already held
+                const data = zLookup[sym][dateStr];
+                if (data && data.zScore <= buyZ) {
+                    candidates.push({ sym, z: data.zScore, price: data.sectorPrice });
+                }
+            });
+            candidates.sort((a, b) => a.z - b.z); // most undervalued first
+
+            const toBuy = candidates.slice(0, availableSlots);
+            if (toBuy.length > 0) {
+                const allocPerPos = cash / toBuy.length;
+                toBuy.forEach(c => {
+                    const shares = Math.floor(allocPerPos / c.price);
+                    if (shares <= 0) return;
+                    const cost = shares * c.price;
+                    cash -= cost;
+                    positions[c.sym] = {
+                        shares, entryPrice: c.price, entryDate: dateStr, entryZ: c.z
+                    };
+                    trades.push({
+                        type: 'BUY', sym: c.sym, date: dateStr, price: c.price,
+                        shares, amount: cost, z: c.z, pnl: null
+                    });
+                });
+            }
+        }
+    }
+
+    // Close any remaining positions at last date
+    const lastDate = allDates[allDates.length - 1];
+    Object.keys(positions).forEach(sym => {
+        const data = zLookup[sym][lastDate];
+        if (data) {
+            const pos = positions[sym];
+            const proceeds = pos.shares * data.sectorPrice;
+            const pnl = (data.sectorPrice - pos.entryPrice) / pos.entryPrice * 100;
+            cash += proceeds;
+            trades.push({
+                type: 'SELL (종료)', sym, date: lastDate, price: data.sectorPrice,
+                shares: pos.shares, amount: proceeds, z: data.zScore,
+                pnl, entryDate: pos.entryDate
+            });
+            positionLog.push({ sym, entryDate: pos.entryDate, exitDate: lastDate });
+            delete positions[sym];
+        }
+    });
+
+    const finalValue = cash;
+    const spyFinalValue = capital * (spyPriceLookup[lastDate] / spyStartPrice);
+
+    return {
+        equityCurve, spyCurve, trades, positionLog,
+        finalValue, spyFinalValue,
+        startDate: allDates[0], endDate: lastDate,
+        cashDays, totalDays, capital
+    };
+}
+
+// ─── DISPLAY RESULTS ───
+function displayResults(result, capital) {
+    document.getElementById('resultsWrap').classList.remove('hidden');
+
+    const years = (new Date(result.endDate) - new Date(result.startDate)) / (365.25 * 86400000);
+    const totalReturn = (result.finalValue / capital - 1) * 100;
+    const spyReturn = (result.spyFinalValue / capital - 1) * 100;
+    const cagr = (Math.pow(result.finalValue / capital, 1 / years) - 1) * 100;
+    const spyCagr = (Math.pow(result.spyFinalValue / capital, 1 / years) - 1) * 100;
+
+    // MDD
+    let peak = 0, mdd = 0, spyPeak = 0, spyMdd = 0;
+    result.equityCurve.forEach(d => {
+        if (d.value > peak) peak = d.value;
+        const dd = (d.value - peak) / peak * 100;
+        if (dd < mdd) mdd = dd;
+    });
+    result.spyCurve.forEach(d => {
+        if (d.value > spyPeak) spyPeak = d.value;
+        const dd = (d.value - spyPeak) / spyPeak * 100;
+        if (dd < spyMdd) spyMdd = dd;
+    });
+
+    // Win rate
+    const sellTrades = result.trades.filter(t => t.type.includes('SELL') && t.pnl !== null);
+    const wins = sellTrades.filter(t => t.pnl > 0).length;
+    const winRate = sellTrades.length > 0 ? (wins / sellTrades.length * 100) : 0;
+    const avgPnl = sellTrades.length > 0 ? sellTrades.reduce((s, t) => s + t.pnl, 0) / sellTrades.length : 0;
+
+    const cashPct = result.totalDays > 0 ? (result.cashDays / result.totalDays * 100) : 0;
+
+    // Update stat cards
+    const fmt = v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    document.getElementById('statFinal').textContent = fmt(result.finalValue);
+    document.getElementById('statFinal').className = 'stat-value ' + (totalReturn >= 0 ? 'positive' : 'negative');
+    document.getElementById('statFinalSub').textContent = (totalReturn >= 0 ? '+' : '') + totalReturn.toFixed(1) + '%';
+
+    document.getElementById('statSpy').textContent = fmt(result.spyFinalValue);
+    document.getElementById('statSpySub').textContent = (spyReturn >= 0 ? '+' : '') + spyReturn.toFixed(1) + '%';
+
+    document.getElementById('statCagr').textContent = (cagr >= 0 ? '+' : '') + cagr.toFixed(1) + '%';
+    document.getElementById('statCagr').className = 'stat-value ' + (cagr >= spyCagr ? 'positive' : 'negative');
+    document.getElementById('statCagrSub').textContent = 'SPY: ' + (spyCagr >= 0 ? '+' : '') + spyCagr.toFixed(1) + '%';
+
+    document.getElementById('statMdd').textContent = mdd.toFixed(1) + '%';
+    document.getElementById('statMdd').className = 'stat-value negative';
+    document.getElementById('statMddSub').textContent = 'SPY: ' + spyMdd.toFixed(1) + '%';
+
+    document.getElementById('statTrades').textContent = sellTrades.length + '회';
+    document.getElementById('statTradesSub').textContent = '매수 ' + result.trades.filter(t => t.type === 'BUY').length + ' / 매도 ' + sellTrades.length;
+
+    document.getElementById('statWin').textContent = winRate.toFixed(0) + '%';
+    document.getElementById('statWin').className = 'stat-value ' + (winRate >= 50 ? 'positive' : 'negative');
+    document.getElementById('statWinSub').textContent = '평균 ' + (avgPnl >= 0 ? '+' : '') + avgPnl.toFixed(1) + '%';
+
+    document.getElementById('statPeriod').textContent = years.toFixed(1) + '년';
+    document.getElementById('statPeriodSub').textContent = result.startDate + ' ~ ' + result.endDate;
+
+    document.getElementById('statCash').textContent = cashPct.toFixed(0) + '%';
+    document.getElementById('statCashSub').textContent = result.cashDays + '일 / ' + result.totalDays + '일';
+
+    buildEquityChart(result);
+    buildDrawdownChart(result);
+    buildTimelineChart(result);
+    buildSectorSummary(result);
+    buildTradeLog(result);
+}
+
+// ─── WATERMARK ───
+const watermarkPlugin = {
+    id: 'watermark', afterDraw(chart) {
+        const ctx = chart.ctx, a = chart.chartArea, w = a.right - a.left;
+        const fs = Math.max(14, Math.min(38, w * 0.07));
+        ctx.save(); ctx.globalAlpha = 0.07; ctx.font = `700 ${fs}px JetBrains Mono`;
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('Herdvibe.com', (a.left + a.right) / 2, (a.top + a.bottom) / 2); ctx.restore();
+    }
+};
+
+// ─── CHARTS ───
+function buildEquityChart(result) {
+    if (_equityChart) _equityChart.destroy();
+    const weekly = toWeeklyEquity(result.equityCurve);
+    const spyWeekly = toWeeklyEquity(result.spyCurve);
+
+    _equityChart = new Chart(document.getElementById('equityChart'), {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: 'Z-Score 전략',
+                    data: weekly.map(d => ({ x: new Date(d.date).getTime(), y: d.value })),
+                    borderColor: '#00d4aa', borderWidth: 2, pointRadius: 0, tension: 0.1, fill: false
+                },
+                {
+                    label: 'SPY Buy & Hold',
+                    data: spyWeekly.map(d => ({ x: new Date(d.date).getTime(), y: d.value })),
+                    borderColor: 'rgba(255,255,255,0.25)', borderWidth: 1.5, pointRadius: 0, tension: 0.1,
+                    borderDash: [4, 3], fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+                x: {
+                    type: 'time', time: { unit: 'year', displayFormats: { year: 'yyyy' } },
+                    grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 } },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    type: 'logarithmic', position: 'right',
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 }) },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index', intersect: false,
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString('en-US', { maximumFractionDigits: 0 })
+                    }
+                },
+                zoom: {
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x',
+                        onZoom: () => { document.getElementById('zoomResetEquity').style.display = 'block'; }
+                    },
+                    pan: { enabled: true, mode: 'x' }
+                }
+            }
+        },
+        plugins: [watermarkPlugin]
+    });
+}
+
+function buildDrawdownChart(result) {
+    if (_ddChart) _ddChart.destroy();
+    const dd = computeDrawdown(result.equityCurve);
+    const spyDd = computeDrawdown(result.spyCurve);
+    const weekly = toWeeklyEquity(dd);
+    const spyWeekly = toWeeklyEquity(spyDd);
+
+    _ddChart = new Chart(document.getElementById('ddChart'), {
+        type: 'line',
+        data: {
+            datasets: [
+                {
+                    label: '전략 낙폭',
+                    data: weekly.map(d => ({ x: new Date(d.date).getTime(), y: d.value })),
+                    borderColor: '#ff4757', borderWidth: 1.5, pointRadius: 0, fill: true,
+                    backgroundColor: 'rgba(255,71,87,0.1)', tension: 0.1
+                },
+                {
+                    label: 'SPY 낙폭',
+                    data: spyWeekly.map(d => ({ x: new Date(d.date).getTime(), y: d.value })),
+                    borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, pointRadius: 0,
+                    borderDash: [3, 3], fill: false, tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: {
+                x: {
+                    type: 'time', time: { unit: 'year', displayFormats: { year: 'yyyy' } },
+                    grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 } },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    position: 'right', max: 0,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 }, callback: v => v.toFixed(0) + '%' },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { mode: 'index', intersect: false, callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + '%' } }
+            }
+        },
+        plugins: [watermarkPlugin]
+    });
+}
+
+function buildTimelineChart(result) {
+    if (_timelineChart) _timelineChart.destroy();
+    const sectorKeys = Object.keys(SECTORS);
+    const datasets = [];
+
+    result.positionLog.forEach(pos => {
+        const sIdx = sectorKeys.indexOf(pos.sym);
+        if (sIdx === -1) return;
+        datasets.push({
+            label: pos.sym,
+            data: [{ x: [new Date(pos.entryDate).getTime(), new Date(pos.exitDate).getTime()], y: pos.sym }],
+            backgroundColor: SECTORS[pos.sym].color + 'AA',
+            borderColor: SECTORS[pos.sym].color,
+            borderWidth: 1, borderSkipped: false, barPercentage: 0.6
+        });
+    });
+
+    _timelineChart = new Chart(document.getElementById('timelineChart'), {
+        type: 'bar',
+        data: { labels: sectorKeys, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false, indexAxis: 'y',
+            scales: {
+                x: {
+                    type: 'time', time: { unit: 'year', displayFormats: { year: 'yyyy' } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#999', font: { family: 'JetBrains Mono', size: 10 } },
+                    border: { color: 'rgba(255,255,255,0.1)' },
+                    stacked: false
+                },
+                y: {
+                    type: 'category', labels: sectorKeys,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#ccc', font: { family: 'JetBrains Mono', size: 11, weight: 600 } },
+                    border: { color: 'rgba(255,255,255,0.1)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const d = ctx.raw.x;
+                            if (!d) return '';
+                            return ctx.dataset.label + ': ' + new Date(d[0]).toISOString().slice(0, 10) + ' → ' + new Date(d[1]).toISOString().slice(0, 10);
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [watermarkPlugin]
+    });
+}
+
+function buildSectorSummary(result) {
+    const summary = {};
+    Object.keys(SECTORS).forEach(sym => { summary[sym] = { trades: 0, wins: 0, totalPnl: 0, totalDays: 0 }; });
+
+    result.trades.forEach(t => {
+        if (t.type.includes('SELL') && t.pnl !== null) {
+            summary[t.sym].trades++;
+            if (t.pnl > 0) summary[t.sym].wins++;
+            summary[t.sym].totalPnl += t.pnl;
+            const days = (new Date(t.date) - new Date(t.entryDate)) / 86400000;
+            summary[t.sym].totalDays += days;
+        }
+    });
+
+    const body = document.getElementById('sectorSummaryBody');
+    let html = '';
+    Object.keys(SECTORS).forEach(sym => {
+        const s = summary[sym];
+        if (s.trades === 0) {
+            html += `<tr><td style="color:${SECTORS[sym].color};font-weight:600">${sym} ${SECTORS[sym].name}</td><td>0</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
+            return;
+        }
+        const wr = (s.wins / s.trades * 100).toFixed(0);
+        const avgPnl = (s.totalPnl / s.trades).toFixed(1);
+        const avgDays = Math.round(s.totalDays / s.trades);
+        const totalPnlStr = s.totalPnl.toFixed(1);
+        html += `<tr>
+            <td style="color:${SECTORS[sym].color};font-weight:600">${sym} ${SECTORS[sym].name}</td>
+            <td>${s.trades}회</td>
+            <td style="color:${s.wins / s.trades >= 0.5 ? 'var(--accent-cyan)' : 'var(--accent-red)'}">${wr}%</td>
+            <td style="color:${parseFloat(avgPnl) >= 0 ? 'var(--accent-cyan)' : 'var(--accent-red)'}">${parseFloat(avgPnl) >= 0 ? '+' : ''}${avgPnl}%</td>
+            <td style="color:${s.totalPnl >= 0 ? 'var(--accent-cyan)' : 'var(--accent-red)'}">${s.totalPnl >= 0 ? '+' : ''}${totalPnlStr}%</td>
+            <td>${avgDays}일</td>
+        </tr>`;
+    });
+    body.innerHTML = html;
+}
+
+function buildTradeLog(result) {
+    const body = document.getElementById('tradeBody');
+    document.getElementById('tradeCount').textContent = `총 ${result.trades.length}건`;
+
+    let html = '';
+    result.trades.forEach((t, i) => {
+        const isBuy = t.type === 'BUY';
+        const rowClass = isBuy ? 'buy-row' : 'sell-row';
+        const badge = isBuy ? '<span class="badge badge-buy">매수</span>' : '<span class="badge badge-sell">매도</span>';
+        const pnlStr = t.pnl !== null ? `<span style="color:${t.pnl >= 0 ? 'var(--accent-cyan)' : 'var(--accent-red)'}">` + (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(1) + '%</span>' : '-';
+        html += `<tr class="${rowClass}">
+            <td>${i + 1}</td>
+            <td>${badge}</td>
+            <td style="color:${SECTORS[t.sym].color}">${t.sym}</td>
+            <td>${t.date}</td>
+            <td>$${t.price.toFixed(2)}</td>
+            <td>${t.shares}</td>
+            <td>$${t.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+            <td>${(t.z >= 0 ? '+' : '') + t.z.toFixed(2)}</td>
+            <td>${pnlStr}</td>
+        </tr>`;
+    });
+    body.innerHTML = html;
+}
+
+// ─── HELPERS ───
+function toWeeklyEquity(data) {
+    if (!data.length) return [];
+    const weekly = []; let wk = null, buf = [];
+    data.forEach(d => {
+        const k = new Date(d.date); k.setDate(k.getDate() - k.getDay());
+        const wkStr = k.toISOString().slice(0, 10);
+        if (wk !== wkStr) { if (buf.length) weekly.push(buf[buf.length - 1]); wk = wkStr; buf = [d]; } else buf.push(d);
+    });
+    if (buf.length) weekly.push(buf[buf.length - 1]);
+    return weekly;
+}
+
+function computeDrawdown(curve) {
+    let peak = 0;
+    return curve.map(d => {
+        if (d.value > peak) peak = d.value;
+        return { date: d.date, value: (d.value - peak) / peak * 100 };
+    });
+}
+
+function resetZoomEquity() {
+    if (_equityChart) { _equityChart.resetZoom(); document.getElementById('zoomResetEquity').style.display = 'none'; }
+}
+
+// ─── SHARE ───
+function openUrl(url) { try { const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; document.body.appendChild(a); a.click(); document.body.removeChild(a); } catch (e) { try { window.open(url, '_blank'); } catch (e2) {} } }
+function doCopy(text) { try { window.parent.postMessage({ type: 'clipboard', text }, '*'); } catch (e) {} try { if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text); return; } } catch (e) {} try { const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:0;top:0;opacity:0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch (e) { window.prompt('아래 링크를 복사하세요:', text); } }
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
+function doShare(platform) {
+    const t = '섹터 Z-Score 백테스트 — HerdVibe';
+    switch (platform) {
+        case 'twitter': openUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(t)}&url=${encodeURIComponent(SHARE_URL)}`); break;
+        case 'telegram': openUrl(`https://t.me/share/url?url=${encodeURIComponent(SHARE_URL)}&text=${encodeURIComponent(t)}`); break;
+        case 'kakao': try { Kakao.Share.sendDefault({ objectType: 'feed', content: { title: '섹터 Z-Score 백테스트', description: 'SPY 대비 저평가 섹터 매수·고평가 매도 백테스트', imageUrl: '', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } }, buttons: [{ title: '차트 보기', link: { mobileWebUrl: SHARE_URL, webUrl: SHARE_URL } }] }); } catch (e) { openUrl(`https://story.kakao.com/share?url=${encodeURIComponent(SHARE_URL)}`); } break;
+        case 'instagram': doCopy(SHARE_URL); showToast('링크가 복사되었습니다 — 인스타그램에 붙여넣기 하세요'); break;
+        case 'copy': doCopy(SHARE_URL); showToast('링크가 복사되었습니다'); break;
+    }
+}
+
+// ─── IFRAME RESIZE ───
+(function () {
+    var lastH = 0; var container = document.querySelector('.container');
+    setInterval(function () {
+        if (window.parent === window) return;
+        var h = container ? container.offsetHeight + 40 : 0;
+        if (h > 0 && Math.abs(h - lastH) > 5) { lastH = h; window.parent.postMessage({ type: 'resize', height: h }, '*'); }
+    }, 500);
+})();
+</script>
+</body>
+</html>
